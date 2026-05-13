@@ -2,7 +2,8 @@
 
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Shield } from "lucide-react";
+import Link from "next/link";
 
 interface UserMenuProps {
   user?: {
@@ -10,9 +11,10 @@ interface UserMenuProps {
     email?: string | null;
     image?: string | null;
   };
+  isAdmin?: boolean;
 }
 
-export function UserMenu({ user }: UserMenuProps) {
+export function UserMenu({ user, isAdmin }: UserMenuProps) {
   return (
     <div className="flex items-center gap-3">
       <div className="text-right hidden sm:block">
@@ -25,6 +27,18 @@ export function UserMenu({ user }: UserMenuProps) {
           alt={user.name ?? "User"}
           className="size-8 rounded-full ring-2 ring-border"
         />
+      )}
+      {isAdmin && (
+        <Link href="/admin">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-muted-foreground"
+          >
+            <Shield className="size-3.5" />
+            <span className="hidden sm:inline">Admin</span>
+          </Button>
+        </Link>
       )}
       <Button
         variant="ghost"

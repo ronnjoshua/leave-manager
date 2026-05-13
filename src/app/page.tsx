@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { auth, isAdmin } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { LeaveDashboard } from "@/components/leave-dashboard";
 import { UserMenu } from "@/components/user-menu";
@@ -7,6 +7,10 @@ import { TreePalm } from "lucide-react";
 export default async function Home() {
   const session = await auth();
   if (!session) redirect("/login");
+
+  const admin = session.user?.email
+    ? await isAdmin(session.user.email)
+    : false;
 
   return (
     <div className="min-h-screen bg-background">
@@ -26,7 +30,7 @@ export default async function Home() {
                 </p>
               </div>
             </div>
-            <UserMenu user={session.user} />
+            <UserMenu user={session.user} isAdmin={admin} />
           </div>
         </div>
       </header>

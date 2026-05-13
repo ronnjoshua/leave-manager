@@ -4,6 +4,7 @@ import {
   timestamp,
   real,
   integer,
+  boolean,
   primaryKey,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
@@ -63,6 +64,17 @@ export const verificationTokens = pgTable(
     }),
   ]
 );
+
+// ─── Access control ───
+
+export const allowedUsers = pgTable("allowed_user", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  email: text("email").notNull().unique(),
+  isAdmin: boolean("is_admin").notNull().default(false),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+});
 
 // ─── Leave calculator tables ───
 
