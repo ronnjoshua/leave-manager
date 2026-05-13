@@ -59,6 +59,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LeaveCalendar } from "@/components/leave-calendar";
 import {
   CalendarDays,
   TrendingUp,
@@ -433,6 +434,9 @@ export function LeaveDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Calendar */}
+      <LeaveCalendar records={state.records} year={year} />
 
       {/* Leave Type Summary */}
       {typeSummary.length > 0 && (
