@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createDb } from "@/lib/db";
+import { db } from "@/lib/db";
 import { leaveRecords } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 
@@ -19,7 +19,7 @@ export async function PUT(
   const body = await req.json();
   const userId = session.user.id;
 
-  const [updated] = await createDb()
+  const [updated] = await db
     .update(leaveRecords)
     .set({
       startDate: body.startDate,
@@ -60,7 +60,7 @@ export async function DELETE(
   const { id } = await params;
   const userId = session.user.id;
 
-  await createDb()
+  await db
     .delete(leaveRecords)
     .where(and(eq(leaveRecords.id, id), eq(leaveRecords.userId, userId)));
 

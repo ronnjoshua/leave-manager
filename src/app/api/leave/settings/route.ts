@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createDb } from "@/lib/db";
+import { db } from "@/lib/db";
 import { leaveSettings } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getYear } from "date-fns";
@@ -18,7 +18,7 @@ export async function PUT(req: NextRequest) {
   const currentYear = getYear(new Date());
   const carryOver = Math.min(Math.max(body.carryOver ?? 0, 0), 6);
 
-  const existing = await createDb()
+  const existing = await db
     .select()
     .from(leaveSettings)
     .where(
@@ -26,7 +26,7 @@ export async function PUT(req: NextRequest) {
     );
 
   if (existing.length > 0) {
-    await createDb()
+    await db
       .update(leaveSettings)
       .set({ carryOver, updatedAt: new Date() })
       .where(
@@ -36,7 +36,7 @@ export async function PUT(req: NextRequest) {
         )
       );
   } else {
-    await createDb().insert(leaveSettings).values({
+    await db.insert(leaveSettings).values({
       userId,
       year: currentYear,
       carryOver,

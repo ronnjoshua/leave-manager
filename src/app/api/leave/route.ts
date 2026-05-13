@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createDb } from "@/lib/db";
+import { db } from "@/lib/db";
 import { leaveRecords, leaveSettings } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getYear } from "date-fns";
@@ -16,14 +16,14 @@ export async function GET() {
   const currentYear = getYear(new Date());
   const userId = session.user.id;
 
-  const [settings] = await createDb()
+  const [settings] = await db
     .select()
     .from(leaveSettings)
     .where(
       and(eq(leaveSettings.userId, userId), eq(leaveSettings.year, currentYear))
     );
 
-  const records = await createDb()
+  const records = await db
     .select()
     .from(leaveRecords)
     .where(
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   const userId = session.user.id;
   const currentYear = getYear(new Date());
 
-  const [record] = await createDb()
+  const [record] = await db
     .insert(leaveRecords)
     .values({
       userId,
