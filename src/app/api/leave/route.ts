@@ -106,13 +106,16 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const userId = session.user.id;
-  const currentYear = getYear(new Date());
+  // Use the year from the leave start date, not the current year
+  const leaveYear = body.startDate
+    ? getYear(parseISO(body.startDate))
+    : getYear(new Date());
 
   const [record] = await db
     .insert(leaveRecords)
     .values({
       userId,
-      year: currentYear,
+      year: leaveYear,
       startDate: body.startDate,
       endDate: body.endDate,
       days: body.days,

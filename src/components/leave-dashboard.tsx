@@ -302,40 +302,41 @@ export function LeaveDashboard() {
   return (
     <div className="space-y-8">
       {/* Year Selector */}
-      {availableYears.length > 1 && (
-        <div className="flex items-center justify-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="size-8 p-0"
-            disabled={!availableYears.includes(year - 1)}
-            onClick={() => switchYear(year - 1)}
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <div className="flex items-center gap-2">
-            {availableYears.map((y) => (
-              <Button
-                key={y}
-                variant={y === year ? "default" : "outline"}
-                size="sm"
-                onClick={() => switchYear(y)}
-              >
-                {y}
-              </Button>
-            ))}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="size-8 p-0"
-            disabled={!availableYears.includes(year + 1)}
-            onClick={() => switchYear(year + 1)}
-          >
-            <ChevronRight className="size-4" />
-          </Button>
+      <div className="flex items-center justify-center gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="size-8 p-0"
+          onClick={() => switchYear(year - 1)}
+        >
+          <ChevronLeft className="size-4" />
+        </Button>
+        <div className="flex items-center gap-2">
+          {availableYears.map((y) => (
+            <Button
+              key={y}
+              variant={y === year ? "default" : "outline"}
+              size="sm"
+              onClick={() => switchYear(y)}
+            >
+              {y}
+            </Button>
+          ))}
+          {!availableYears.includes(year) && (
+            <Button variant="default" size="sm">
+              {year}
+            </Button>
+          )}
         </div>
-      )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="size-8 p-0"
+          onClick={() => switchYear(year + 1)}
+        >
+          <ChevronRight className="size-4" />
+        </Button>
+      </div>
 
       {/* Viewing Past Year Notice */}
       {!isViewingCurrentYear && (
