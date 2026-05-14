@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { leaveRecords, leaveSettings } from "@/lib/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { getYear, differenceInMonths, parseISO } from "date-fns";
+import {
+  getAccruedLeaves,
+  MAX_CARRY_OVER,
+} from "@/lib/leave-calculator";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +22,7 @@ export async function GET(req: NextRequest) {
   const requestedYear = yearParam ? parseInt(yearParam) : currentYear;
   const userId = session.user.id;
 
-  const [settings] = await db
+  let [settings] = await db
     .select()
     .from(leaveSettings)
     .where(
@@ -27,6 +31,56 @@ export async function GET(req: NextRequest) {
         eq(leaveSettings.year, requestedYear)
       )
     );
+
+  // Auto year-rollover: if no settings for current year, calculate carry-over from last year
+  if (!settings && requestedYear === currentYear) {
+    const prevYear = currentYear - 1;
+
+    const [prevSettings] = await db
+      .select()
+      .from(leaveSettings)
+      .where(
+        and(
+          eq(leaveSettings.userId, userId),
+          eq(leaveSettings.year, prevYear)
+        )
+      );
+
+    const prevRecords = await db
+      .select()
+      .from(leaveRecords)
+      .where(
+        and(eq(leaveRecords.userId, userId), eq(leaveRecords.year, prevYear))
+      );
+
+    let carryOver = 0;
+    if (prevSettings) {
+      const prevCarryOver = Math.min(prevSettings.carryOver, MAX_CARRY_OVER);
+      const prevAccrued = getAccruedLeaves(
+        prevYear,
+        new Date(prevYear, 11, 31), // Dec 31 of prev year
+        (prevSettings.employmentStatus as "regular" | "probationary") ?? "regular",
+        prevSettings.startDate
+      );
+      const prevUsed = prevRecords.reduce((sum, r) => sum + r.days, 0);
+      const prevRemaining = prevCarryOver + prevAccrued - prevUsed;
+      carryOver = Math.min(Math.max(prevRemaining, 0), MAX_CARRY_OVER);
+    }
+
+    // Create settings for current year with carry-over
+    const [newSettings] = await db
+      .insert(leaveSettings)
+      .values({
+        userId,
+        year: currentYear,
+        carryOver,
+        employmentStatus: prevSettings?.employmentStatus ?? "regular",
+        startDate: prevSettings?.startDate ?? null,
+      })
+      .returning();
+
+    settings = newSettings;
+  }
 
   // Auto-convert probationary to regular after 6 months (only for current year)
   let employmentStatus = settings?.employmentStatus ?? "regular";
