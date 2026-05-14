@@ -6,6 +6,8 @@ import type { EmploymentStatus } from "@/lib/leave-calculator";
 
 interface LeaveData {
   year: number;
+  currentYear: number;
+  availableYears: number[];
   carryOver: number;
   employmentStatus: EmploymentStatus;
   startDate: string | null;
@@ -15,9 +17,11 @@ interface LeaveData {
 export function useLeaveState() {
   const [data, setData] = useState<LeaveData | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [viewingYear, setViewingYear] = useState<number | null>(null);
 
-  const fetchData = useCallback(async () => {
-    const res = await fetch("/api/leave");
+  const fetchData = useCallback(async (year?: number) => {
+    const url = year ? `/api/leave?year=${year}` : "/api/leave";
+    const res = await fetch(url);
     if (res.ok) {
       const json = await res.json();
       setData(json);
@@ -26,8 +30,13 @@ export function useLeaveState() {
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchData(viewingYear ?? undefined);
+  }, [fetchData, viewingYear]);
+
+  const switchYear = useCallback((year: number) => {
+    setIsLoaded(false);
+    setViewingYear(year);
+  }, []);
 
   const addRecord = useCallback(
     async (record: Omit<LeaveRecord, "id" | "createdAt">) => {
@@ -97,7 +106,11 @@ export function useLeaveState() {
   }, []);
 
   const updateSettings = useCallback(
-    async (settings: { employmentStatus?: EmploymentStatus; startDate?: string; carryOver?: number }) => {
+    async (settings: {
+      employmentStatus?: EmploymentStatus;
+      startDate?: string | null;
+      carryOver?: number;
+    }) => {
       const res = await fetch("/api/leave/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -110,7 +123,8 @@ export function useLeaveState() {
           return {
             ...prev,
             carryOver: updated.carryOver ?? prev.carryOver,
-            employmentStatus: updated.employmentStatus ?? prev.employmentStatus,
+            employmentStatus:
+              updated.employmentStatus ?? prev.employmentStatus,
             startDate: updated.startDate ?? prev.startDate,
           };
         });
@@ -126,20 +140,31 @@ export function useLeaveState() {
       .filter((r) => r.source === "Carry-over")
       .reduce((sum, r) => sum + r.days, 0) ?? 0;
 
+  const isViewingCurrentYear =
+    !data || data.year === data.currentYear;
+
   const state = data
     ? {
         year: data.year,
+        currentYear: data.currentYear,
+        availableYears: data.availableYears,
         carryOver: data.carryOver,
         employmentStatus: data.employmentStatus,
         startDate: data.startDate,
         records: data.records,
-        previousYears: [] as { year: number; carryOver: number; records: LeaveRecord[] }[],
+        previousYears: [] as {
+          year: number;
+          carryOver: number;
+          records: LeaveRecord[];
+        }[],
       }
     : null;
 
   return {
     state,
     isLoaded,
+    isViewingCurrentYear,
+    switchYear,
     addRecord,
     updateRecord,
     removeRecord,

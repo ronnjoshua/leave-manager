@@ -72,6 +72,8 @@ import {
   Pencil,
   Trash2,
   CalendarRange,
+  ChevronLeft,
+  ChevronRight,
   Info,
 } from "lucide-react";
 
@@ -96,6 +98,8 @@ export function LeaveDashboard() {
   const {
     state,
     isLoaded,
+    isViewingCurrentYear,
+    switchYear,
     addRecord,
     updateRecord,
     removeRecord,
@@ -293,8 +297,62 @@ export function LeaveDashboard() {
     return `${s} - ${e}`;
   }
 
+  const availableYears = state.availableYears ?? [year];
+
   return (
     <div className="space-y-8">
+      {/* Year Selector */}
+      {availableYears.length > 1 && (
+        <div className="flex items-center justify-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="size-8 p-0"
+            disabled={!availableYears.includes(year - 1)}
+            onClick={() => switchYear(year - 1)}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <div className="flex items-center gap-2">
+            {availableYears.map((y) => (
+              <Button
+                key={y}
+                variant={y === year ? "default" : "outline"}
+                size="sm"
+                onClick={() => switchYear(y)}
+              >
+                {y}
+              </Button>
+            ))}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="size-8 p-0"
+            disabled={!availableYears.includes(year + 1)}
+            onClick={() => switchYear(year + 1)}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Viewing Past Year Notice */}
+      {!isViewingCurrentYear && (
+        <div className="flex items-center justify-between rounded-xl border border-muted bg-muted/30 px-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            Viewing <strong className="text-foreground">{year}</strong> (read-only)
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => switchYear(state.currentYear!)}
+          >
+            Back to {state.currentYear}
+          </Button>
+        </div>
+      )}
+
       {/* Year Rollover Notice */}
       {(state.previousYears?.length ?? 0) > 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-teal-200 bg-teal-50/60 px-4 py-3 dark:border-teal-900 dark:bg-teal-950/30">
@@ -525,8 +583,8 @@ export function LeaveDashboard() {
         </Card>
       )}
 
-      {/* Actions */}
-      <div className="flex flex-wrap gap-3">
+      {/* Actions (current year only) */}
+      {isViewingCurrentYear && <div className="flex flex-wrap gap-3">
         <Dialog
           open={dialogOpen}
           onOpenChange={(open) => {
@@ -761,7 +819,7 @@ export function LeaveDashboard() {
             Export CSV
           </Button>
         )}
-      </div>
+      </div>}
 
       <Separator />
 
@@ -874,7 +932,7 @@ export function LeaveDashboard() {
                     <TableHead>Type</TableHead>
                     <TableHead>Source</TableHead>
                     <TableHead>Reason</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    {isViewingCurrentYear && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -904,26 +962,28 @@ export function LeaveDashboard() {
                       <TableCell className="text-muted-foreground">
                         {record.reason}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="size-8 p-0"
-                            onClick={() => openEditDialog(record)}
-                          >
-                            <Pencil className="size-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="size-8 p-0 text-destructive hover:text-destructive"
-                            onClick={() => removeRecord(record.id)}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      {isViewingCurrentYear && (
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="size-8 p-0"
+                              onClick={() => openEditDialog(record)}
+                            >
+                              <Pencil className="size-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="size-8 p-0 text-destructive hover:text-destructive"
+                              onClick={() => removeRecord(record.id)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
