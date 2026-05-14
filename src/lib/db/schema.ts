@@ -107,5 +107,6 @@ export const leaveRecords = pgTable("leave_record", {
   type: text("type").notNull(),
   source: text("source").notNull(),
   reason: text("reason").notNull(),
+  status: text("status").notNull().default("actual"), // "actual" or "planned"
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
 });

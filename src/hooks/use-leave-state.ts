@@ -133,12 +133,32 @@ export function useLeaveState() {
     []
   );
 
-  const totalUsed =
-    data?.records.reduce((sum, r) => sum + r.days, 0) ?? 0;
-  const carryOverUsed =
-    data?.records
-      .filter((r) => r.source === "Carry-over")
-      .reduce((sum, r) => sum + r.days, 0) ?? 0;
+  const confirmPlanned = useCallback(async (id: string) => {
+    const res = await fetch(`/api/leave/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "actual" }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          records: prev.records.map((r) => (r.id === id ? updated : r)),
+        };
+      });
+    }
+  }, []);
+
+  const actualRecords = data?.records.filter((r) => r.status === "actual") ?? [];
+  const plannedRecords = data?.records.filter((r) => r.status === "planned") ?? [];
+
+  const totalUsed = actualRecords.reduce((sum, r) => sum + r.days, 0);
+  const totalPlanned = plannedRecords.reduce((sum, r) => sum + r.days, 0);
+  const carryOverUsed = actualRecords
+    .filter((r) => r.source === "Carry-over")
+    .reduce((sum, r) => sum + r.days, 0);
 
   const isViewingCurrentYear =
     !data || data.year === data.currentYear;
@@ -168,9 +188,11 @@ export function useLeaveState() {
     addRecord,
     updateRecord,
     removeRecord,
+    confirmPlanned,
     setCarryOver,
     updateSettings,
     totalUsed,
+    totalPlanned,
     carryOverUsed,
   };
 }

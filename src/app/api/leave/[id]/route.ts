@@ -28,6 +28,7 @@ export async function PUT(
       type: body.type,
       source: body.source,
       reason: body.reason,
+      ...(body.status !== undefined && { status: body.status }),
     })
     .where(and(eq(leaveRecords.id, id), eq(leaveRecords.userId, userId)))
     .returning();
@@ -44,6 +45,7 @@ export async function PUT(
     type: updated.type,
     source: updated.source,
     reason: updated.reason,
+    status: updated.status ?? "actual",
     createdAt: updated.createdAt?.toISOString() ?? new Date().toISOString(),
   });
 }

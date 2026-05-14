@@ -13,6 +13,10 @@ export const LEAVE_SOURCES = ["Current Year", "Carry-over"] as const;
 
 export type LeaveSource = (typeof LEAVE_SOURCES)[number];
 
+export const LEAVE_STATUSES = ["actual", "planned"] as const;
+
+export type LeaveStatus = (typeof LEAVE_STATUSES)[number];
+
 export interface LeaveRecord {
   id: string;
   startDate: string; // ISO date string
@@ -21,6 +25,7 @@ export interface LeaveRecord {
   type: LeaveType;
   source: LeaveSource;
   reason: string;
+  status: LeaveStatus;
   createdAt: string;
 }
 

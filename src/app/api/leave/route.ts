@@ -147,6 +147,7 @@ export async function GET(req: NextRequest) {
       type: r.type,
       source: r.source,
       reason: r.reason,
+      status: r.status ?? "actual",
       createdAt: r.createdAt?.toISOString() ?? new Date().toISOString(),
     })),
   });
@@ -176,6 +177,7 @@ export async function POST(req: NextRequest) {
       type: body.type,
       source: body.source,
       reason: body.reason,
+      status: body.status ?? "actual",
     })
     .returning();
 
@@ -187,6 +189,7 @@ export async function POST(req: NextRequest) {
     type: record.type,
     source: record.source,
     reason: record.reason,
+    status: record.status ?? "actual",
     createdAt: record.createdAt?.toISOString() ?? new Date().toISOString(),
   });
 }

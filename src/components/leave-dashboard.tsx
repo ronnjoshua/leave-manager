@@ -103,14 +103,18 @@ export function LeaveDashboard() {
     addRecord,
     updateRecord,
     removeRecord,
+    confirmPlanned,
     setCarryOver,
     updateSettings,
     totalUsed,
+    totalPlanned,
   } = useLeaveState();
 
   // Add leave dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [formStatus, setFormStatus] = useState<"actual" | "planned">("actual");
+  const [historyTab, setHistoryTab] = useState<"actual" | "planned">("actual");
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
   const [formDays, setFormDays] = useState("");
@@ -205,6 +209,7 @@ export function LeaveDashboard() {
     setFormType("Vacation");
     setFormSource("Current Year");
     setFormReason("");
+    setFormStatus("actual");
   }
 
   function handleAddLeave(e: React.FormEvent) {
@@ -228,6 +233,7 @@ export function LeaveDashboard() {
       type: formType,
       source: formSource,
       reason: formReason.trim(),
+      status: formStatus,
     });
     resetAddForm();
     setDialogOpen(false);
@@ -425,7 +431,11 @@ export function LeaveDashboard() {
             <p className="text-3xl font-bold tabular-nums tracking-tight">
               {available.toFixed(1)}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">days remaining</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {totalPlanned > 0
+                ? `${(available - totalPlanned).toFixed(1)} after planned`
+                : "days remaining"}
+            </p>
           </CardContent>
         </Card>
 
@@ -730,8 +740,30 @@ export function LeaveDashboard() {
                   required
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={formStatus}
+                  onValueChange={(val) => setFormStatus(val as "actual" | "planned")}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="actual">Actual (confirmed)</SelectItem>
+                    <SelectItem value="planned">Planned (tentative)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {formStatus === "planned" && (
+                  <p className="text-xs text-muted-foreground">
+                    Planned leaves don&apos;t deduct from your balance until confirmed.
+                  </p>
+                )}
+              </div>
               <DialogFooter>
-                <Button type="submit">Save Leave</Button>
+                <Button type="submit">
+                  {formStatus === "planned" ? "Save as Planned" : "Save Leave"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -913,25 +945,70 @@ export function LeaveDashboard() {
       {/* Leave History */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Leave History</CardTitle>
-          <CardDescription>
-            All recorded leave usage for {year}
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Leave History</CardTitle>
+              <CardDescription>
+                {historyTab === "actual" ? "Confirmed" : "Planned"} leaves for {year}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+              <button
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  historyTab === "actual"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setHistoryTab("actual")}
+              >
+                Actual
+                {state.records.filter((r) => r.status === "actual").length > 0 && (
+                  <span className="ml-1.5 tabular-nums">
+                    ({state.records.filter((r) => r.status === "actual").length})
+                  </span>
+                )}
+              </button>
+              <button
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  historyTab === "planned"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setHistoryTab("planned")}
+              >
+                Planned
+                {state.records.filter((r) => r.status === "planned").length > 0 && (
+                  <span className="ml-1.5 tabular-nums">
+                    ({state.records.filter((r) => r.status === "planned").length})
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {state.records.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <div className="flex items-center justify-center size-12 rounded-full bg-muted">
-                <CalendarDays className="size-5 text-muted-foreground" />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-medium">No leaves recorded</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Click &quot;Log Leave&quot; to record your first leave.
-                </p>
-              </div>
-            </div>
-          ) : (
+          {(() => {
+            const filteredRecords = state.records.filter((r) => r.status === historyTab);
+            if (filteredRecords.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="flex items-center justify-center size-12 rounded-full bg-muted">
+                    <CalendarDays className="size-5 text-muted-foreground" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium">
+                      {historyTab === "actual" ? "No leaves recorded" : "No planned leaves"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {historyTab === "actual"
+                        ? "Click \"Log Leave\" to record your first leave."
+                        : "Plan future leaves by setting status to \"Planned\" when logging."}
+                    </p>
+                  </div>
+                </div>
+              );
+            }
+            return (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -945,7 +1022,7 @@ export function LeaveDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {state.records.map((record) => (
+                  {filteredRecords.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell className="whitespace-nowrap font-medium">
                         {formatDateRange(record.startDate, record.endDate)}
@@ -974,6 +1051,16 @@ export function LeaveDashboard() {
                       {isViewingCurrentYear && (
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {record.status === "planned" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs gap-1 text-primary"
+                                onClick={() => confirmPlanned(record.id)}
+                              >
+                                Confirm
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -998,7 +1085,8 @@ export function LeaveDashboard() {
                 </TableBody>
               </Table>
             </div>
-          )}
+            );
+          })()}
         </CardContent>
       </Card>
 
