@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { leaveRecords, leaveSettings } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { getYear } from "date-fns";
+import { getYear, differenceInMonths, parseISO } from "date-fns";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +23,22 @@ export async function GET() {
       and(eq(leaveSettings.userId, userId), eq(leaveSettings.year, currentYear))
     );
 
+  // Auto-convert probationary to regular after 6 months
+  let employmentStatus = settings?.employmentStatus ?? "regular";
+  if (
+    employmentStatus === "probationary" &&
+    settings?.startDate &&
+    differenceInMonths(new Date(), parseISO(settings.startDate)) >= 6
+  ) {
+    employmentStatus = "regular";
+    await db
+      .update(leaveSettings)
+      .set({ employmentStatus: "regular", updatedAt: new Date() })
+      .where(
+        and(eq(leaveSettings.userId, userId), eq(leaveSettings.year, currentYear))
+      );
+  }
+
   const records = await db
     .select()
     .from(leaveRecords)
@@ -34,7 +50,7 @@ export async function GET() {
   return NextResponse.json({
     year: currentYear,
     carryOver: settings?.carryOver ?? 0,
-    employmentStatus: settings?.employmentStatus ?? "regular",
+    employmentStatus,
     startDate: settings?.startDate ?? null,
     records: records.map((r) => ({
       id: r.id,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
+import { format, differenceInMonths, parseISO } from "date-fns";
 import { useLeaveState } from "@/hooks/use-leave-state";
 import {
   getAccruedLeaves,
@@ -321,9 +321,19 @@ export function LeaveDashboard() {
         <CalendarDays className="size-4 text-muted-foreground shrink-0" />
         <p className="text-sm text-muted-foreground">
           Status: <strong className="text-foreground capitalize">{empStatus}</strong>
-          {empStatus === "probationary" && employeeStartDate && (
-            <> &middot; Start date: <strong className="text-foreground">{format(new Date(employeeStartDate), "MMMM d, yyyy")}</strong></>
-          )}
+          {empStatus === "probationary" && employeeStartDate && (() => {
+            const monthsWorked = differenceInMonths(new Date(), parseISO(employeeStartDate));
+            const monthsLeft = Math.max(6 - monthsWorked, 0);
+            return (
+              <>
+                {" "}&middot; Start date: <strong className="text-foreground">{format(new Date(employeeStartDate), "MMMM d, yyyy")}</strong>
+                {" "}&middot; <strong className="text-foreground">{monthsWorked}</strong> month{monthsWorked !== 1 ? "s" : ""} worked
+                {monthsLeft > 0 && (
+                  <> &middot; <strong className="text-primary">{monthsLeft}</strong> month{monthsLeft !== 1 ? "s" : ""} until regular</>
+                )}
+              </>
+            );
+          })()}
           {empStatus === "regular" && (
             <> &middot; Full 2.5 days/month accrual</>
           )}
