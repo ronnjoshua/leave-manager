@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { LeaveRecord } from "@/lib/types";
+import type { EmploymentStatus } from "@/lib/leave-calculator";
 
 interface LeaveData {
   year: number;
   carryOver: number;
+  employmentStatus: EmploymentStatus;
   startDate: string | null;
   records: LeaveRecord[];
 }
@@ -94,19 +96,28 @@ export function useLeaveState() {
     }
   }, []);
 
-  const setStartDate = useCallback(async (startDate: string) => {
-    const res = await fetch("/api/leave/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ startDate }),
-    });
-    if (res.ok) {
-      setData((prev) => {
-        if (!prev) return prev;
-        return { ...prev, startDate };
+  const updateSettings = useCallback(
+    async (settings: { employmentStatus?: EmploymentStatus; startDate?: string; carryOver?: number }) => {
+      const res = await fetch("/api/leave/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
       });
-    }
-  }, []);
+      if (res.ok) {
+        const updated = await res.json();
+        setData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            carryOver: updated.carryOver ?? prev.carryOver,
+            employmentStatus: updated.employmentStatus ?? prev.employmentStatus,
+            startDate: updated.startDate ?? prev.startDate,
+          };
+        });
+      }
+    },
+    []
+  );
 
   const totalUsed =
     data?.records.reduce((sum, r) => sum + r.days, 0) ?? 0;
@@ -119,6 +130,7 @@ export function useLeaveState() {
     ? {
         year: data.year,
         carryOver: data.carryOver,
+        employmentStatus: data.employmentStatus,
         startDate: data.startDate,
         records: data.records,
         previousYears: [] as { year: number; carryOver: number; records: LeaveRecord[] }[],
@@ -132,7 +144,7 @@ export function useLeaveState() {
     updateRecord,
     removeRecord,
     setCarryOver,
-    setStartDate,
+    updateSettings,
     totalUsed,
     carryOverUsed,
   };

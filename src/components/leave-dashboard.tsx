@@ -100,7 +100,7 @@ export function LeaveDashboard() {
     updateRecord,
     removeRecord,
     setCarryOver,
-    setStartDate,
+    updateSettings,
     totalUsed,
   } = useLeaveState();
 
@@ -115,6 +115,7 @@ export function LeaveDashboard() {
   const [formSource, setFormSource] = useState<LeaveSource>("Current Year");
   const [formReason, setFormReason] = useState("");
   const [carryOverInput, setCarryOverInput] = useState("");
+  const [statusInput, setStatusInput] = useState<"regular" | "probationary">("regular");
   const [startDateInput, setStartDateInput] = useState("");
 
   // Edit dialog
@@ -157,11 +158,12 @@ export function LeaveDashboard() {
 
   const now = new Date();
   const year = state.year;
+  const empStatus = state.employmentStatus ?? "regular";
   const employeeStartDate = state.startDate;
   const carryOver = calculateCarryOver(state.carryOver);
-  const accrued = getAccruedLeaves(year, now, employeeStartDate);
-  const available = getAvailableLeaves(carryOver, year, totalUsed, now, employeeStartDate);
-  const totalPossible = getTotalPossibleLeaves(state.carryOver, employeeStartDate);
+  const accrued = getAccruedLeaves(year, now, empStatus, employeeStartDate);
+  const available = getAvailableLeaves(carryOver, year, totalUsed, now, empStatus, employeeStartDate);
+  const totalPossible = getTotalPossibleLeaves(state.carryOver, empStatus, employeeStartDate);
   const completedMonths = getCompletedMonths(year, now);
   const remainingCarryOver = getRemainingCarryOver(
     state.carryOver,
@@ -172,9 +174,10 @@ export function LeaveDashboard() {
     state.carryOver,
     state.records,
     now,
+    empStatus,
     employeeStartDate
   );
-  const forecast = getEndOfYearForecast(state.carryOver, totalUsed, employeeStartDate);
+  const forecast = getEndOfYearForecast(state.carryOver, totalUsed, empStatus, employeeStartDate);
   const typeSummary = getLeaveTypeSummary(state.records);
 
   const maxDaysForSource =
@@ -220,15 +223,22 @@ export function LeaveDashboard() {
 
   function handleSaveSettings(e: React.FormEvent) {
     e.preventDefault();
+    const settings: Record<string, unknown> = {
+      employmentStatus: statusInput,
+    };
     if (carryOverInput) {
       const val = parseFloat(carryOverInput);
       if (!isNaN(val) && val >= 0) {
-        setCarryOver(val);
+        settings.carryOver = val;
       }
     }
-    if (startDateInput) {
-      setStartDate(startDateInput);
+    if (statusInput === "probationary" && startDateInput) {
+      settings.startDate = startDateInput;
     }
+    if (statusInput === "regular") {
+      settings.startDate = null;
+    }
+    updateSettings(settings as Parameters<typeof updateSettings>[0]);
     setCarryOverInput("");
     setStartDateInput("");
     setSettingsDialogOpen(false);
@@ -297,24 +307,28 @@ export function LeaveDashboard() {
         </div>
       )}
 
-      {/* Start Date Notice */}
-      {!employeeStartDate && (
+      {/* Employment Status Notice */}
+      {empStatus === "probationary" && !employeeStartDate && (
         <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/30">
           <Info className="size-4 text-amber-600 shrink-0" />
           <p className="text-sm text-amber-800 dark:text-amber-200">
-            No employment start date set. Click <strong>Settings</strong> to configure your start date for accurate leave accrual.
+            You are set as <strong>Probationary</strong> but no start date is configured. Click <strong>Settings</strong> to set your start date.
           </p>
         </div>
       )}
 
-      {employeeStartDate && (
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-          <CalendarDays className="size-4 text-muted-foreground shrink-0" />
-          <p className="text-sm text-muted-foreground">
-            Employment start date: <strong className="text-foreground">{format(new Date(employeeStartDate), "MMMM d, yyyy")}</strong>
-          </p>
-        </div>
-      )}
+      <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+        <CalendarDays className="size-4 text-muted-foreground shrink-0" />
+        <p className="text-sm text-muted-foreground">
+          Status: <strong className="text-foreground capitalize">{empStatus}</strong>
+          {empStatus === "probationary" && employeeStartDate && (
+            <> &middot; Start date: <strong className="text-foreground">{format(new Date(employeeStartDate), "MMMM d, yyyy")}</strong></>
+          )}
+          {empStatus === "regular" && (
+            <> &middot; Full 2.5 days/month accrual</>
+          )}
+        </p>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
@@ -652,6 +666,7 @@ export function LeaveDashboard() {
             setSettingsDialogOpen(open);
             if (open) {
               setCarryOverInput(state.carryOver.toString());
+              setStatusInput(empStatus);
               setStartDateInput(employeeStartDate ?? "");
             }
           }}
@@ -669,17 +684,40 @@ export function LeaveDashboard() {
             </DialogHeader>
             <form onSubmit={handleSaveSettings} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="employee-start-date">Employment Start Date</Label>
-                <Input
-                  id="employee-start-date"
-                  type="date"
-                  value={startDateInput}
-                  onChange={(e) => setStartDateInput(e.target.value)}
-                />
+                <Label>Employment Status</Label>
+                <Select
+                  value={statusInput}
+                  onValueChange={(val) => setStatusInput(val as "regular" | "probationary")}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="regular">Regular</SelectItem>
+                    <SelectItem value="probationary">Probationary</SelectItem>
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-muted-foreground">
-                  You earn 2.5 days/month only for months where you started on or before the 15th.
+                  {statusInput === "regular"
+                    ? "Full 2.5 days/month accrual for all months."
+                    : "Accrual starts from your employment start date."}
                 </p>
               </div>
+              {statusInput === "probationary" && (
+                <div className="space-y-2">
+                  <Label htmlFor="employee-start-date">Employment Start Date</Label>
+                  <Input
+                    id="employee-start-date"
+                    type="date"
+                    value={startDateInput}
+                    onChange={(e) => setStartDateInput(e.target.value)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    You earn 2.5 days/month only for months where you started on or before the 15th.
+                  </p>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="carry-over">Carry-over from {year - 1}</Label>
                 <Input

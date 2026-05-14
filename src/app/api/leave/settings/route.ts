@@ -22,6 +22,9 @@ export async function PUT(req: NextRequest) {
   if (body.carryOver !== undefined) {
     updates.carryOver = Math.min(Math.max(body.carryOver ?? 0, 0), 5);
   }
+  if (body.employmentStatus !== undefined) {
+    updates.employmentStatus = body.employmentStatus;
+  }
   if (body.startDate !== undefined) {
     updates.startDate = body.startDate;
   }
@@ -48,6 +51,7 @@ export async function PUT(req: NextRequest) {
       userId,
       year: currentYear,
       carryOver: (updates.carryOver as number) ?? 0,
+      employmentStatus: (updates.employmentStatus as string) ?? "regular",
       startDate: (updates.startDate as string) ?? null,
     });
   }
@@ -62,6 +66,7 @@ export async function PUT(req: NextRequest) {
 
   return NextResponse.json({
     carryOver: updated?.carryOver ?? 0,
+    employmentStatus: updated?.employmentStatus ?? "regular",
     startDate: updated?.startDate ?? null,
   });
 }
