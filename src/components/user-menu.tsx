@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Shield, Menu, BookOpen, User } from "lucide-react";
+import { LogOut, Shield, ChevronDown, BookOpen, User } from "lucide-react";
 import Link from "next/link";
 
 interface UserMenuProps {
@@ -22,26 +22,54 @@ interface UserMenuProps {
   isAdmin?: boolean;
 }
 
+function UserAvatar({
+  user,
+  size = "sm",
+}: {
+  user?: UserMenuProps["user"];
+  size?: "sm" | "md";
+}) {
+  const sizeClass = size === "md" ? "size-9" : "size-7";
+
+  if (user?.image) {
+    return (
+      <img
+        src={user.image}
+        alt={user.name ?? "User"}
+        className={`${sizeClass} rounded-full ring-2 ring-border object-cover`}
+        referrerPolicy="no-referrer"
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`${sizeClass} rounded-full bg-primary/10 flex items-center justify-center`}
+    >
+      <User className="size-3.5 text-primary" />
+    </div>
+  );
+}
+
 export function UserMenu({ user, isAdmin }: UserMenuProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5 sm:gap-2">
+      <ThemeToggle />
+
       {/* Desktop: full layout */}
       <div className="hidden md:flex items-center gap-2">
-        <div className="text-right mr-1">
+        <div className="text-right mr-0.5">
           <p className="text-sm font-medium leading-none">{user?.name}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{user?.email}</p>
         </div>
-        {user?.image && (
-          <img
-            src={user.image}
-            alt={user.name ?? "User"}
-            className="size-8 rounded-full ring-2 ring-border"
-          />
-        )}
-        <ThemeToggle />
+        <UserAvatar user={user} size="md" />
         {isAdmin && (
           <Link href="/admin">
-            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground"
+            >
               <Shield className="size-3.5" />
               Admin
             </Button>
@@ -58,32 +86,26 @@ export function UserMenu({ user, isAdmin }: UserMenuProps) {
         </Button>
       </div>
 
-      {/* Mobile: avatar + dropdown */}
-      <div className="flex md:hidden items-center gap-2">
-        <ThemeToggle />
+      {/* Mobile: avatar + chevron dropdown */}
+      <div className="flex md:hidden">
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <button className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm hover:bg-accent transition-colors outline-none">
-                {user?.image ? (
-                  <img
-                    src={user.image}
-                    alt={user.name ?? "User"}
-                    className="size-7 rounded-full ring-2 ring-border"
-                  />
-                ) : (
-                  <div className="size-7 rounded-full bg-muted flex items-center justify-center">
-                    <User className="size-3.5 text-muted-foreground" />
-                  </div>
-                )}
-                <Menu className="size-4 text-muted-foreground" />
+              <button className="flex items-center gap-1 rounded-full pl-0.5 pr-1.5 py-0.5 hover:bg-accent transition-colors outline-none">
+                <UserAvatar user={user} />
+                <ChevronDown className="size-3.5 text-muted-foreground" />
               </button>
             }
           />
           <DropdownMenuContent align="end" sideOffset={8}>
-            <div className="px-2 py-2">
-              <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-xs text-muted-foreground">{user?.email}</p>
+            <div className="flex items-center gap-2.5 px-2 py-2.5">
+              <UserAvatar user={user} size="md" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{user?.name}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {user?.email}
+                </p>
+              </div>
             </div>
             <DropdownMenuSeparator />
             <Link href="/policy">
