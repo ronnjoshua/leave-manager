@@ -1,6 +1,7 @@
 import {
   getMonth,
   getYear,
+  getDate,
   endOfMonth,
   isBefore,
   isEqual,
@@ -11,7 +12,7 @@ import {
 import type { LeaveRecord, LeaveType } from "./types";
 
 export const MONTHLY_ACCRUAL = 2.5;
-export const MAX_CARRY_OVER = 6;
+export const MAX_CARRY_OVER = 5;
 
 /**
  * Count business days (Mon-Fri) between two dates, inclusive.
@@ -43,8 +44,56 @@ export function getCompletedMonths(year: number, referenceDate: Date): number {
   return isEndOfMo ? refMonth + 1 : refMonth;
 }
 
-export function getAccruedLeaves(year: number, referenceDate: Date): number {
-  return getCompletedMonths(year, referenceDate) * MONTHLY_ACCRUAL;
+/**
+ * Check if a month qualifies for accrual based on employee start date.
+ * Employee gets 2.5 for a month if:
+ * - They started before or during that month, AND
+ * - If they started in that exact month, they started on or before the 15th
+ */
+function monthQualifiesForAccrual(
+  monthIndex: number,
+  year: number,
+  employeeStartDate: string | null | undefined
+): boolean {
+  if (!employeeStartDate) return true; // no start date set = full accrual
+
+  const start = parseISO(employeeStartDate);
+  const startYear = getYear(start);
+  const startMonth = getMonth(start);
+  const startDay = getDate(start);
+
+  // Employee hadn't started yet in this year
+  if (startYear > year) return false;
+
+  // Employee started in a previous year — all months qualify
+  if (startYear < year) return true;
+
+  // Same year: month is before the start month — no accrual
+  if (monthIndex < startMonth) return false;
+
+  // Same year, same month — only qualifies if started on or before 15th
+  if (monthIndex === startMonth) return startDay <= 15;
+
+  // Month is after start month — qualifies
+  return true;
+}
+
+/**
+ * Total leaves accrued so far this year, considering employee start date.
+ */
+export function getAccruedLeaves(
+  year: number,
+  referenceDate: Date,
+  employeeStartDate?: string | null
+): number {
+  const completedMonths = getCompletedMonths(year, referenceDate);
+  let total = 0;
+  for (let m = 0; m < completedMonths; m++) {
+    if (monthQualifiesForAccrual(m, year, employeeStartDate)) {
+      total += MONTHLY_ACCRUAL;
+    }
+  }
+  return total;
 }
 
 export function calculateCarryOver(remainingFromLastYear: number): number {
@@ -55,9 +104,10 @@ export function getAvailableLeaves(
   carryOver: number,
   year: number,
   usedLeaves: number,
-  referenceDate: Date
+  referenceDate: Date,
+  employeeStartDate?: string | null
 ): number {
-  const accrued = getAccruedLeaves(year, referenceDate);
+  const accrued = getAccruedLeaves(year, referenceDate, employeeStartDate);
   return calculateCarryOver(carryOver) + accrued - usedLeaves;
 }
 
@@ -72,16 +122,30 @@ export function getRemainingCarryOver(
   return Math.max(cappedCarryOver - usedFromCarryOver, 0);
 }
 
-export function getTotalPossibleLeaves(carryOver: number): number {
-  return calculateCarryOver(carryOver) + 12 * MONTHLY_ACCRUAL;
+/**
+ * Total possible leaves for the full year (considering start date).
+ */
+export function getTotalPossibleLeaves(
+  carryOver: number,
+  employeeStartDate?: string | null
+): number {
+  let totalAccrual = 0;
+  const year = new Date().getFullYear();
+  for (let m = 0; m < 12; m++) {
+    if (monthQualifiesForAccrual(m, year, employeeStartDate)) {
+      totalAccrual += MONTHLY_ACCRUAL;
+    }
+  }
+  return calculateCarryOver(carryOver) + totalAccrual;
 }
 
 export function calculateEndOfYearBalance(
   carryOver: number,
-  totalUsed: number
+  totalUsed: number,
+  employeeStartDate?: string | null
 ): number {
-  const accrued = 12 * MONTHLY_ACCRUAL;
-  return Math.max(calculateCarryOver(carryOver) + accrued - totalUsed, 0);
+  const totalPossible = getTotalPossibleLeaves(carryOver, employeeStartDate);
+  return Math.max(totalPossible - totalUsed, 0);
 }
 
 /**
@@ -89,9 +153,10 @@ export function calculateEndOfYearBalance(
  */
 export function getEndOfYearForecast(
   carryOver: number,
-  totalUsed: number
+  totalUsed: number,
+  employeeStartDate?: string | null
 ): number {
-  return calculateEndOfYearBalance(carryOver, totalUsed);
+  return calculateEndOfYearBalance(carryOver, totalUsed, employeeStartDate);
 }
 
 /**
@@ -116,7 +181,8 @@ export function getMonthlyBreakdown(
   year: number,
   carryOver: number,
   records: LeaveRecord[],
-  referenceDate: Date
+  referenceDate: Date,
+  employeeStartDate?: string | null
 ) {
   const completedMonths = getCompletedMonths(year, referenceDate);
   const months = [
@@ -132,7 +198,8 @@ export function getMonthlyBreakdown(
       return d.getMonth() === index && d.getFullYear() === year;
     });
     const used = monthRecords.reduce((sum, r) => sum + r.days, 0);
-    const accrued = index < completedMonths ? MONTHLY_ACCRUAL : 0;
+    const qualifies = monthQualifiesForAccrual(index, year, employeeStartDate);
+    const accrued = index < completedMonths && qualifies ? MONTHLY_ACCRUAL : 0;
     runningBalance += accrued - used;
 
     return {
@@ -145,6 +212,7 @@ export function getMonthlyBreakdown(
       isCurrent:
         index === getMonth(referenceDate) &&
         getYear(referenceDate) === year,
+      noAccrual: index < completedMonths && !qualifies,
     };
   });
 }

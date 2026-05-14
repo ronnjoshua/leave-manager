@@ -100,12 +100,13 @@ export function LeaveDashboard() {
     updateRecord,
     removeRecord,
     setCarryOver,
+    setStartDate,
     totalUsed,
   } = useLeaveState();
 
   // Add leave dialog
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [carryOverDialogOpen, setCarryOverDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
   const [formDays, setFormDays] = useState("");
@@ -114,6 +115,7 @@ export function LeaveDashboard() {
   const [formSource, setFormSource] = useState<LeaveSource>("Current Year");
   const [formReason, setFormReason] = useState("");
   const [carryOverInput, setCarryOverInput] = useState("");
+  const [startDateInput, setStartDateInput] = useState("");
 
   // Edit dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -155,10 +157,11 @@ export function LeaveDashboard() {
 
   const now = new Date();
   const year = state.year;
+  const employeeStartDate = state.startDate;
   const carryOver = calculateCarryOver(state.carryOver);
-  const accrued = getAccruedLeaves(year, now);
-  const available = getAvailableLeaves(carryOver, year, totalUsed, now);
-  const totalPossible = getTotalPossibleLeaves(state.carryOver);
+  const accrued = getAccruedLeaves(year, now, employeeStartDate);
+  const available = getAvailableLeaves(carryOver, year, totalUsed, now, employeeStartDate);
+  const totalPossible = getTotalPossibleLeaves(state.carryOver, employeeStartDate);
   const completedMonths = getCompletedMonths(year, now);
   const remainingCarryOver = getRemainingCarryOver(
     state.carryOver,
@@ -168,9 +171,10 @@ export function LeaveDashboard() {
     year,
     state.carryOver,
     state.records,
-    now
+    now,
+    employeeStartDate
   );
-  const forecast = getEndOfYearForecast(state.carryOver, totalUsed);
+  const forecast = getEndOfYearForecast(state.carryOver, totalUsed, employeeStartDate);
   const typeSummary = getLeaveTypeSummary(state.records);
 
   const maxDaysForSource =
@@ -214,13 +218,20 @@ export function LeaveDashboard() {
     setDialogOpen(false);
   }
 
-  function handleSetCarryOver(e: React.FormEvent) {
+  function handleSaveSettings(e: React.FormEvent) {
     e.preventDefault();
-    const val = parseFloat(carryOverInput);
-    if (isNaN(val) || val < 0) return;
-    setCarryOver(val);
+    if (carryOverInput) {
+      const val = parseFloat(carryOverInput);
+      if (!isNaN(val) && val >= 0) {
+        setCarryOver(val);
+      }
+    }
+    if (startDateInput) {
+      setStartDate(startDateInput);
+    }
     setCarryOverInput("");
-    setCarryOverDialogOpen(false);
+    setStartDateInput("");
+    setSettingsDialogOpen(false);
   }
 
   function openEditDialog(record: LeaveRecord) {
@@ -281,7 +292,26 @@ export function LeaveDashboard() {
           <p className="text-sm text-teal-800 dark:text-teal-200">
             Auto-rolled over from{" "}
             {state.previousYears![state.previousYears!.length - 1].year}.
-            Carry-over: <strong>{carryOver} days</strong> (capped at 6).
+            Carry-over: <strong>{carryOver} days</strong> (capped at 5).
+          </p>
+        </div>
+      )}
+
+      {/* Start Date Notice */}
+      {!employeeStartDate && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/30">
+          <Info className="size-4 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            No employment start date set. Click <strong>Settings</strong> to configure your start date for accurate leave accrual.
+          </p>
+        </div>
+      )}
+
+      {employeeStartDate && (
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+          <CalendarDays className="size-4 text-muted-foreground shrink-0" />
+          <p className="text-sm text-muted-foreground">
+            Employment start date: <strong className="text-foreground">{format(new Date(employeeStartDate), "MMMM d, yyyy")}</strong>
           </p>
         </div>
       )}
@@ -430,7 +460,7 @@ export function LeaveDashboard() {
               <TrendingUp className="size-3" />
               2.5 days/month
             </span>
-            <span>30 days/year + up to 6 carry-over</span>
+            <span>30 days/year + up to 5 carry-over</span>
           </div>
         </CardContent>
       </Card>
@@ -617,38 +647,57 @@ export function LeaveDashboard() {
         </Dialog>
 
         <Dialog
-          open={carryOverDialogOpen}
-          onOpenChange={setCarryOverDialogOpen}
+          open={settingsDialogOpen}
+          onOpenChange={(open) => {
+            setSettingsDialogOpen(open);
+            if (open) {
+              setCarryOverInput(state.carryOver.toString());
+              setStartDateInput(employeeStartDate ?? "");
+            }
+          }}
         >
           <DialogTrigger render={<Button variant="outline" className="gap-2" />}>
             <Settings className="size-4" />
-            Set Carry-over
+            Settings
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Set Carry-over Leaves</DialogTitle>
+              <DialogTitle>Leave Settings</DialogTitle>
               <DialogDescription>
-                Enter remaining leaves from {year - 1}. Maximum carry-over is 6
-                days.
+                Configure your employment start date and carry-over balance.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSetCarryOver} className="space-y-4">
+            <form onSubmit={handleSaveSettings} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="carry-over">Leaves from {year - 1}</Label>
+                <Label htmlFor="employee-start-date">Employment Start Date</Label>
+                <Input
+                  id="employee-start-date"
+                  type="date"
+                  value={startDateInput}
+                  onChange={(e) => setStartDateInput(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  You earn 2.5 days/month only for months where you started on or before the 15th.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="carry-over">Carry-over from {year - 1}</Label>
                 <Input
                   id="carry-over"
                   type="number"
                   step="0.5"
                   min="0"
-                  max="6"
-                  placeholder="0 - 6"
+                  max="5"
+                  placeholder="0 - 5"
                   value={carryOverInput}
                   onChange={(e) => setCarryOverInput(e.target.value)}
-                  required
                 />
+                <p className="text-xs text-muted-foreground">
+                  Maximum 5 days carry-over from previous year.
+                </p>
               </div>
               <DialogFooter>
-                <Button type="submit">Save</Button>
+                <Button type="submit">Save Settings</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -711,9 +760,15 @@ export function LeaveDashboard() {
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {m.isCompleted ? (
-                        <span className="text-primary">
-                          +{m.accrued.toFixed(1)}
-                        </span>
+                        m.noAccrual ? (
+                          <span className="text-muted-foreground/60" title="Not yet employed">
+                            0
+                          </span>
+                        ) : (
+                          <span className="text-primary">
+                            +{m.accrued.toFixed(1)}
+                          </span>
+                        )
                       ) : (
                         <span className="text-muted-foreground/40">-</span>
                       )}

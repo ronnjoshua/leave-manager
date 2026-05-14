@@ -87,6 +87,7 @@ export const leaveSettings = pgTable("leave_settings", {
     .references(() => users.id, { onDelete: "cascade" }),
   year: integer("year").notNull(),
   carryOver: real("carry_over").notNull().default(0),
+  startDate: text("start_date"), // employee start date (ISO string)
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
 });

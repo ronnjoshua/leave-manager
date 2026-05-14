@@ -16,7 +16,15 @@ export async function PUT(req: NextRequest) {
   const body = await req.json();
   const userId = session.user.id;
   const currentYear = getYear(new Date());
-  const carryOver = Math.min(Math.max(body.carryOver ?? 0, 0), 6);
+
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+
+  if (body.carryOver !== undefined) {
+    updates.carryOver = Math.min(Math.max(body.carryOver ?? 0, 0), 5);
+  }
+  if (body.startDate !== undefined) {
+    updates.startDate = body.startDate;
+  }
 
   const existing = await db
     .select()
@@ -28,7 +36,7 @@ export async function PUT(req: NextRequest) {
   if (existing.length > 0) {
     await db
       .update(leaveSettings)
-      .set({ carryOver, updatedAt: new Date() })
+      .set(updates)
       .where(
         and(
           eq(leaveSettings.userId, userId),
@@ -39,9 +47,21 @@ export async function PUT(req: NextRequest) {
     await db.insert(leaveSettings).values({
       userId,
       year: currentYear,
-      carryOver,
+      carryOver: (updates.carryOver as number) ?? 0,
+      startDate: (updates.startDate as string) ?? null,
     });
   }
 
-  return NextResponse.json({ carryOver });
+  // Return updated settings
+  const [updated] = await db
+    .select()
+    .from(leaveSettings)
+    .where(
+      and(eq(leaveSettings.userId, userId), eq(leaveSettings.year, currentYear))
+    );
+
+  return NextResponse.json({
+    carryOver: updated?.carryOver ?? 0,
+    startDate: updated?.startDate ?? null,
+  });
 }

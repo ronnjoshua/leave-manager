@@ -6,6 +6,7 @@ import { LeaveRecord } from "@/lib/types";
 interface LeaveData {
   year: number;
   carryOver: number;
+  startDate: string | null;
   records: LeaveRecord[];
 }
 
@@ -79,7 +80,7 @@ export function useLeaveState() {
   }, []);
 
   const setCarryOver = useCallback(async (carryOver: number) => {
-    const capped = Math.min(Math.max(carryOver, 0), 6);
+    const capped = Math.min(Math.max(carryOver, 0), 5);
     const res = await fetch("/api/leave/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -93,6 +94,20 @@ export function useLeaveState() {
     }
   }, []);
 
+  const setStartDate = useCallback(async (startDate: string) => {
+    const res = await fetch("/api/leave/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ startDate }),
+    });
+    if (res.ok) {
+      setData((prev) => {
+        if (!prev) return prev;
+        return { ...prev, startDate };
+      });
+    }
+  }, []);
+
   const totalUsed =
     data?.records.reduce((sum, r) => sum + r.days, 0) ?? 0;
   const carryOverUsed =
@@ -100,11 +115,11 @@ export function useLeaveState() {
       .filter((r) => r.source === "Carry-over")
       .reduce((sum, r) => sum + r.days, 0) ?? 0;
 
-  // Map to the shape the dashboard expects
   const state = data
     ? {
         year: data.year,
         carryOver: data.carryOver,
+        startDate: data.startDate,
         records: data.records,
         previousYears: [] as { year: number; carryOver: number; records: LeaveRecord[] }[],
       }
@@ -117,6 +132,7 @@ export function useLeaveState() {
     updateRecord,
     removeRecord,
     setCarryOver,
+    setStartDate,
     totalUsed,
     carryOverUsed,
   };

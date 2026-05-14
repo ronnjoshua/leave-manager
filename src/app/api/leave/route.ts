@@ -34,6 +34,7 @@ export async function GET() {
   return NextResponse.json({
     year: currentYear,
     carryOver: settings?.carryOver ?? 0,
+    startDate: settings?.startDate ?? null,
     records: records.map((r) => ({
       id: r.id,
       startDate: r.startDate,
