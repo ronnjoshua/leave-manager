@@ -17,7 +17,11 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Protect everything except auth routes, login page, static files
-    "/((?!api/auth|login|_next/static|_next/image|favicon.ico).*)",
+    // Protect everything except:
+    // - auth routes (/api/auth)
+    // - login page
+    // - static files (_next/static, _next/image)
+    // - public assets (icons, images, manifest, favicon)
+    "/((?!api/auth|login|_next/static|_next/image|favicon\\.ico|icon\\.png|apple-icon\\.png|icons/|images/|manifest\\.json).*)",
   ],
 };
