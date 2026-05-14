@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     title: "Leave Tracker",
   },
   icons: {
-    icon: "/icons/icon-192.png",
-    apple: "/icons/icon-192.png",
+    icon: "/images/leave-tracker-icon.png",
+    apple: "/images/leave-tracker-icon.png",
   },
 };
 

@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { TreePalm, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 export default function Error({
   reset,
@@ -12,9 +13,13 @@ export default function Error({
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="flex flex-col items-center gap-6 text-center max-w-sm">
-        <div className="flex items-center justify-center size-16 rounded-2xl bg-destructive/10">
-          <TreePalm className="size-8 text-destructive" />
-        </div>
+        <Image
+          src="/images/leave-tracker-icon.png"
+          alt="Leave Tracker"
+          width={64}
+          height={64}
+          className="rounded-xl opacity-60"
+        />
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             Something went wrong

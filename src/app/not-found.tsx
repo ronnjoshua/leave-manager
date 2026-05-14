@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { TreePalm, ArrowLeft } from "lucide-react";
+import { AppIcon } from "@/components/app-icon";
+import { ArrowLeft } from "lucide-react";
 
 export default function NotFound() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="flex flex-col items-center gap-6 text-center max-w-sm">
-        <div className="flex items-center justify-center size-16 rounded-2xl bg-primary/10">
-          <TreePalm className="size-8 text-primary" />
-        </div>
+        <AppIcon size={64} />
         <div>
           <h1 className="text-4xl font-bold tracking-tight">404</h1>
           <p className="text-lg text-muted-foreground mt-2">Page not found</p>

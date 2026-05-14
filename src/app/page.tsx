@@ -2,7 +2,7 @@ import { auth, isAdmin } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { LeaveDashboard } from "@/components/leave-dashboard";
 import { UserMenu } from "@/components/user-menu";
-import { TreePalm } from "lucide-react";
+import { AppIcon } from "@/components/app-icon";
 
 export default async function Home() {
   const session = await auth();
@@ -18,9 +18,7 @@ export default async function Home() {
         <div className="mx-auto max-w-5xl px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5 sm:gap-3">
-              <div className="flex items-center justify-center size-9 sm:size-10 rounded-xl bg-primary/10">
-                <TreePalm className="size-4 sm:size-5 text-primary" />
-              </div>
+              <AppIcon size={36} />
               <div>
                 <h1 className="text-lg sm:text-xl font-semibold tracking-tight">
                   Leave Tracker

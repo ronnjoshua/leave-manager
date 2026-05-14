@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { TreePalm, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { AppIcon } from "@/components/app-icon";
 import {
   Card,
   CardContent,
@@ -21,9 +22,7 @@ export default async function PolicyPage() {
         <div className="mx-auto max-w-3xl px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center size-10 rounded-xl bg-primary/10">
-                <TreePalm className="size-5 text-primary" />
-              </div>
+              <AppIcon size={36} />
               <div>
                 <h1 className="text-xl font-semibold tracking-tight">
                   Leave Policy

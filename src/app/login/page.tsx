@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LoginButtons } from "@/components/login-buttons";
-import { TreePalm } from "lucide-react";
+import { AppIcon } from "@/components/app-icon";
 
 export default async function LoginPage({
   searchParams,
@@ -25,8 +25,8 @@ export default async function LoginPage({
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto flex items-center justify-center size-12 rounded-xl bg-primary/10 mb-3">
-            <TreePalm className="size-6 text-primary" />
+          <div className="mx-auto mb-3">
+            <AppIcon size={56} />
           </div>
           <CardTitle className="text-xl">Leave Tracker</CardTitle>
           <CardDescription>

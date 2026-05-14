@@ -1,7 +1,8 @@
 import { auth, isAdmin } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AdminUserManager } from "@/components/admin-user-manager";
-import { TreePalm, Shield } from "lucide-react";
+import { Shield } from "lucide-react";
+import { AppIcon } from "@/components/app-icon";
 import Link from "next/link";
 
 export default async function AdminPage() {
@@ -17,9 +18,7 @@ export default async function AdminPage() {
         <div className="mx-auto max-w-3xl px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center size-10 rounded-xl bg-primary/10">
-                <Shield className="size-5 text-primary" />
-              </div>
+              <AppIcon size={36} />
               <div>
                 <h1 className="text-xl font-semibold tracking-tight">
                   User Management
@@ -33,7 +32,7 @@ export default async function AdminPage() {
               href="/"
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              <TreePalm className="size-4" />
+              <AppIcon size={20} />
               Back to dashboard
             </Link>
           </div>
