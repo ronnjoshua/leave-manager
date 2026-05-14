@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { LeaveRecord } from "@/lib/types";
 import type { EmploymentStatus } from "@/lib/leave-calculator";
 
@@ -51,6 +52,13 @@ export function useLeaveState() {
           if (!prev) return prev;
           return { ...prev, records: [newRecord, ...prev.records] };
         });
+        toast.success(
+          record.status === "planned"
+            ? "Planned leave saved"
+            : "Leave logged successfully"
+        );
+      } else {
+        toast.error("Failed to save leave");
       }
     },
     []
@@ -75,6 +83,9 @@ export function useLeaveState() {
             records: prev.records.map((r) => (r.id === id ? updated : r)),
           };
         });
+        toast.success("Leave updated");
+      } else {
+        toast.error("Failed to update leave");
       }
     },
     []
@@ -87,6 +98,9 @@ export function useLeaveState() {
         if (!prev) return prev;
         return { ...prev, records: prev.records.filter((r) => r.id !== id) };
       });
+      toast.success("Leave removed");
+    } else {
+      toast.error("Failed to remove leave");
     }
   }, []);
 
@@ -128,6 +142,9 @@ export function useLeaveState() {
             startDate: updated.startDate ?? prev.startDate,
           };
         });
+        toast.success("Settings saved");
+      } else {
+        toast.error("Failed to save settings");
       }
     },
     []
@@ -148,11 +165,16 @@ export function useLeaveState() {
           records: prev.records.map((r) => (r.id === id ? updated : r)),
         };
       });
+      toast.success("Leave confirmed");
+    } else {
+      toast.error("Failed to confirm leave");
     }
   }, []);
 
-  const actualRecords = data?.records.filter((r) => r.status === "actual") ?? [];
-  const plannedRecords = data?.records.filter((r) => r.status === "planned") ?? [];
+  const actualRecords =
+    data?.records.filter((r) => r.status === "actual") ?? [];
+  const plannedRecords =
+    data?.records.filter((r) => r.status === "planned") ?? [];
 
   const totalUsed = actualRecords.reduce((sum, r) => sum + r.days, 0);
   const totalPlanned = plannedRecords.reduce((sum, r) => sum + r.days, 0);
@@ -160,8 +182,7 @@ export function useLeaveState() {
     .filter((r) => r.source === "Carry-over")
     .reduce((sum, r) => sum + r.days, 0);
 
-  const isViewingCurrentYear =
-    !data || data.year === data.currentYear;
+  const isViewingCurrentYear = !data || data.year === data.currentYear;
 
   const state = data
     ? {

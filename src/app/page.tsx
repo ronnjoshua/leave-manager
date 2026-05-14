@@ -34,8 +34,8 @@ export default async function Home() {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <LeaveDashboard />
+      <main className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
+        <LeaveDashboard userName={session.user?.name ?? undefined} />
       </main>
       <footer className="border-t mt-12">
         <div className="mx-auto max-w-5xl px-6 py-4">

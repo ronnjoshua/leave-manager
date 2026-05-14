@@ -23,6 +23,7 @@ import {
   LeaveSource,
   LeaveRecord,
 } from "@/lib/types";
+import { toast } from "sonner";
 import { exportToCsv } from "@/lib/export-csv";
 import { exportToPdf } from "@/lib/export-pdf";
 import { findOverlappingRecords } from "@/lib/leave-utils";
@@ -103,7 +104,14 @@ const LEAVE_TYPE_COLORS: Record<LeaveType, string> = {
   Bereavement: "bg-slate-500",
 };
 
-export function LeaveDashboard() {
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+export function LeaveDashboard({ userName }: { userName?: string }) {
   const {
     state,
     isLoaded,
@@ -354,6 +362,21 @@ export function LeaveDashboard() {
 
   return (
     <div className="space-y-8">
+      {/* Greeting */}
+      {isViewingCurrentYear && userName && (
+        <div>
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
+            {getGreeting()}, {userName.split(" ")[0]}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            You have <strong className="text-foreground">{available.toFixed(1)} days</strong> available
+            {totalPlanned > 0 && (
+              <> &middot; <strong className="text-foreground">{totalPlanned.toFixed(1)}</strong> planned</>
+            )}
+          </p>
+        </div>
+      )}
+
       {/* Year Selector */}
       <div className="flex flex-col items-center gap-1.5">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Viewing Year</p>
@@ -1040,6 +1063,9 @@ export function LeaveDashboard() {
               a.download = `leave-backup-${new Date().toISOString().split("T")[0]}.json`;
               a.click();
               URL.revokeObjectURL(url);
+              toast.success("Backup downloaded");
+            } else {
+              toast.error("Failed to create backup");
             }
           }}
         >
@@ -1065,7 +1091,10 @@ export function LeaveDashboard() {
                   body: text,
                 });
                 if (res.ok) {
+                  toast.success("Data restored successfully");
                   window.location.reload();
+                } else {
+                  toast.error("Failed to restore data");
                 }
               }
             };
