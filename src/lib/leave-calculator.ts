@@ -8,6 +8,7 @@ import {
   eachDayOfInterval,
   isWeekend,
   parseISO,
+  format,
 } from "date-fns";
 import type { LeaveRecord, LeaveType } from "./types";
 
@@ -15,14 +16,22 @@ export const MONTHLY_ACCRUAL = 2.5;
 export const MAX_CARRY_OVER = 5;
 
 /**
- * Count business days (Mon-Fri) between two dates, inclusive.
+ * Count business days (Mon-Fri, excluding holidays) between two dates, inclusive.
  */
-export function countBusinessDays(startDate: string, endDate: string): number {
+export function countBusinessDays(
+  startDate: string,
+  endDate: string,
+  holidays?: Set<string>
+): number {
   const start = parseISO(startDate);
   const end = parseISO(endDate);
   if (isBefore(end, start)) return 0;
   const days = eachDayOfInterval({ start, end });
-  return days.filter((d) => !isWeekend(d)).length;
+  return days.filter((d) => {
+    if (isWeekend(d)) return false;
+    if (holidays?.has(format(d, "yyyy-MM-dd"))) return false;
+    return true;
+  }).length;
 }
 
 /**
@@ -44,35 +53,41 @@ export function getCompletedMonths(year: number, referenceDate: Date): number {
   return isEndOfMo ? refMonth + 1 : refMonth;
 }
 
+export const HALF_MONTH_ACCRUAL = 1.25;
+
 export type EmploymentStatus = "regular" | "probationary";
 
 /**
- * Check if a month qualifies for accrual based on employment status and start date.
- * - Regular: always gets 2.5/month for all completed months
- * - Probationary: only gets 2.5 if started on or before the 15th of that month
+ * Get accrual amount for a specific month based on employment status and start date.
+ * - Regular: always 2.5
+ * - Probationary:
+ *   - Before start month: 0
+ *   - Start month, started on/before 15th: 2.5
+ *   - Start month, started after 15th: 1.25
+ *   - After start month: 2.5
  */
-function monthQualifiesForAccrual(
+function getMonthAccrual(
   monthIndex: number,
   year: number,
   employmentStatus: EmploymentStatus,
   employeeStartDate: string | null | undefined
-): boolean {
-  // Regular employees always qualify
-  if (employmentStatus === "regular") return true;
+): number {
+  if (employmentStatus === "regular") return MONTHLY_ACCRUAL;
 
-  // Probationary without start date — can't calculate, assume no accrual
-  if (!employeeStartDate) return false;
+  if (!employeeStartDate) return 0;
 
   const start = parseISO(employeeStartDate);
   const startYear = getYear(start);
   const startMonth = getMonth(start);
   const startDay = getDate(start);
 
-  if (startYear > year) return false;
-  if (startYear < year) return true;
-  if (monthIndex < startMonth) return false;
-  if (monthIndex === startMonth) return startDay <= 15;
-  return true;
+  if (startYear > year) return 0;
+  if (startYear < year) return MONTHLY_ACCRUAL;
+  if (monthIndex < startMonth) return 0;
+  if (monthIndex === startMonth) {
+    return startDay <= 15 ? MONTHLY_ACCRUAL : HALF_MONTH_ACCRUAL;
+  }
+  return MONTHLY_ACCRUAL;
 }
 
 /**
@@ -87,9 +102,7 @@ export function getAccruedLeaves(
   const completedMonths = getCompletedMonths(year, referenceDate);
   let total = 0;
   for (let m = 0; m < completedMonths; m++) {
-    if (monthQualifiesForAccrual(m, year, employmentStatus, employeeStartDate)) {
-      total += MONTHLY_ACCRUAL;
-    }
+    total += getMonthAccrual(m, year, employmentStatus, employeeStartDate);
   }
   return total;
 }
@@ -132,9 +145,7 @@ export function getTotalPossibleLeaves(
   let totalAccrual = 0;
   const year = new Date().getFullYear();
   for (let m = 0; m < 12; m++) {
-    if (monthQualifiesForAccrual(m, year, employmentStatus, employeeStartDate)) {
-      totalAccrual += MONTHLY_ACCRUAL;
-    }
+    totalAccrual += getMonthAccrual(m, year, employmentStatus, employeeStartDate);
   }
   return calculateCarryOver(carryOver) + totalAccrual;
 }
@@ -198,8 +209,8 @@ export function getMonthlyBreakdown(
       return d.getMonth() === index && d.getFullYear() === year;
     });
     const used = monthRecords.reduce((sum, r) => sum + r.days, 0);
-    const qualifies = monthQualifiesForAccrual(index, year, employmentStatus, employeeStartDate);
-    const accrued = index < completedMonths && qualifies ? MONTHLY_ACCRUAL : 0;
+    const monthAccrual = getMonthAccrual(index, year, employmentStatus, employeeStartDate);
+    const accrued = index < completedMonths ? monthAccrual : 0;
     runningBalance += accrued - used;
 
     return {
@@ -212,7 +223,8 @@ export function getMonthlyBreakdown(
       isCurrent:
         index === getMonth(referenceDate) &&
         getYear(referenceDate) === year,
-      noAccrual: index < completedMonths && !qualifies,
+      noAccrual: index < completedMonths && monthAccrual === 0,
+      isPartialAccrual: index < completedMonths && monthAccrual === HALF_MONTH_ACCRUAL,
     };
   });
 }

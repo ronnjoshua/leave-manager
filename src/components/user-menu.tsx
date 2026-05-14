@@ -2,6 +2,7 @@
 
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { LogOut, Shield } from "lucide-react";
 import Link from "next/link";
 
@@ -28,6 +29,7 @@ export function UserMenu({ user, isAdmin }: UserMenuProps) {
           className="size-8 rounded-full ring-2 ring-border"
         />
       )}
+      <ThemeToggle />
       {isAdmin && (
         <Link href="/admin">
           <Button

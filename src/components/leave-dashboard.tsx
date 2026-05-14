@@ -23,6 +23,7 @@ import {
   LeaveRecord,
 } from "@/lib/types";
 import { exportToCsv } from "@/lib/export-csv";
+import { exportToPdf } from "@/lib/export-pdf";
 import {
   Card,
   CardContent,
@@ -60,6 +61,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LeaveCalendar } from "@/components/leave-calendar";
+import { useHolidays } from "@/hooks/use-holidays";
 import {
   CalendarDays,
   TrendingUp,
@@ -72,6 +74,7 @@ import {
   Pencil,
   Trash2,
   CalendarRange,
+  BarChart3,
   ChevronLeft,
   ChevronRight,
   Info,
@@ -110,6 +113,9 @@ export function LeaveDashboard() {
     totalPlanned,
   } = useLeaveState();
 
+  const viewYear = state?.year ?? new Date().getFullYear();
+  const { holidaySet } = useHolidays(viewYear);
+
   // Add leave dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
@@ -140,18 +146,18 @@ export function LeaveDashboard() {
   // Auto-calculate business days for add form
   useEffect(() => {
     if (!formDaysManual && formStartDate && formEndDate) {
-      const bd = countBusinessDays(formStartDate, formEndDate);
+      const bd = countBusinessDays(formStartDate, formEndDate, holidaySet);
       setFormDays(bd > 0 ? bd.toString() : "");
     }
-  }, [formStartDate, formEndDate, formDaysManual]);
+  }, [formStartDate, formEndDate, formDaysManual, holidaySet]);
 
   // Auto-calculate business days for edit form
   useEffect(() => {
     if (!editDaysManual && editStartDate && editEndDate) {
-      const bd = countBusinessDays(editStartDate, editEndDate);
+      const bd = countBusinessDays(editStartDate, editEndDate, holidaySet);
       setEditDays(bd > 0 ? bd.toString() : "");
     }
-  }, [editStartDate, editEndDate, editDaysManual]);
+  }, [editStartDate, editEndDate, editDaysManual, holidaySet]);
 
   if (!isLoaded || !state) {
     return (
@@ -605,6 +611,51 @@ export function LeaveDashboard() {
         </Card>
       )}
 
+      {/* Stats */}
+      {state.records.filter((r) => r.status === "actual").length >= 2 && (() => {
+        const actualRecs = state.records.filter((r) => r.status === "actual");
+        const avgPerMonth = completedMonths > 0 ? totalUsed / completedMonths : 0;
+        const monthCounts = new Map<number, number>();
+        actualRecs.forEach((r) => {
+          const m = new Date(r.startDate).getMonth();
+          monthCounts.set(m, (monthCounts.get(m) ?? 0) + r.days);
+        });
+        const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        let busiestMonth = "";
+        let busiestDays = 0;
+        monthCounts.forEach((days, m) => {
+          if (days > busiestDays) { busiestDays = days; busiestMonth = monthNames[m]; }
+        });
+        const topType = typeSummary.length > 0 ? typeSummary[0] : null;
+
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <BarChart3 className="size-4" />
+                Leave Stats
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-2xl font-bold tabular-nums">{avgPerMonth.toFixed(1)}</p>
+                  <p className="text-xs text-muted-foreground">avg days/month</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{busiestMonth || "-"}</p>
+                  <p className="text-xs text-muted-foreground">busiest month ({busiestDays.toFixed(1)}d)</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{topType?.type ?? "-"}</p>
+                  <p className="text-xs text-muted-foreground">most used type ({topType?.days.toFixed(1) ?? 0}d)</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {/* Actions (current year only) */}
       {isViewingCurrentYear && <div className="flex flex-wrap gap-3">
         <Dialog
@@ -653,8 +704,8 @@ export function LeaveDashboard() {
                 <div className="flex items-center gap-2 rounded-lg bg-accent/50 px-3 py-2">
                   <CalendarRange className="size-3.5 text-primary shrink-0" />
                   <p className="text-xs text-muted-foreground">
-                    {countBusinessDays(formStartDate, formEndDate)} business
-                    day(s) auto-calculated.{" "}
+                    {countBusinessDays(formStartDate, formEndDate, holidaySet)} business
+                    business day(s) (excl. weekends &amp; holidays).{" "}
                     <button
                       type="button"
                       className="underline text-primary hover:text-primary/80"
@@ -826,7 +877,7 @@ export function LeaveDashboard() {
                     required
                   />
                   <p className="text-xs text-muted-foreground">
-                    You earn 2.5 days/month only for months where you started on or before the 15th.
+                    Started on/before 15th = 2.5 days. Started after 15th = 1.25 days for that month.
                   </p>
                 </div>
               )}
@@ -854,14 +905,37 @@ export function LeaveDashboard() {
         </Dialog>
 
         {state.records.length > 0 && (
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => exportToCsv(state.records, year)}
-          >
-            <Download className="size-4" />
-            Export CSV
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => exportToCsv(state.records, year)}
+            >
+              <Download className="size-4" />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
+                exportToPdf({
+                  year,
+                  employeeName: "Leave Report",
+                  employmentStatus: empStatus,
+                  startDate: employeeStartDate ?? null,
+                  carryOver,
+                  accrued,
+                  totalUsed,
+                  available,
+                  forecast,
+                  records: state.records,
+                })
+              }
+            >
+              <Download className="size-4" />
+              PDF
+            </Button>
+          </>
         )}
       </div>}
 
@@ -913,6 +987,10 @@ export function LeaveDashboard() {
                         m.noAccrual ? (
                           <span className="text-muted-foreground/60" title="Not yet employed">
                             0
+                          </span>
+                        ) : m.isPartialAccrual ? (
+                          <span className="text-amber-600" title="Partial month (started after 15th)">
+                            +{m.accrued.toFixed(2)}
                           </span>
                         ) : (
                           <span className="text-primary">
@@ -1128,8 +1206,8 @@ export function LeaveDashboard() {
               <div className="flex items-center gap-2 rounded-lg bg-accent/50 px-3 py-2">
                 <CalendarRange className="size-3.5 text-primary shrink-0" />
                 <p className="text-xs text-muted-foreground">
-                  {countBusinessDays(editStartDate, editEndDate)} business
-                  day(s) auto-calculated.{" "}
+                  {countBusinessDays(editStartDate, editEndDate, holidaySet)} business
+                  business day(s) (excl. weekends &amp; holidays).{" "}
                   <button
                     type="button"
                     className="underline text-primary hover:text-primary/80"
