@@ -29,6 +29,7 @@ export async function PUT(
       source: body.source,
       reason: body.reason,
       ...(body.status !== undefined && { status: body.status }),
+      ...(body.halfDay !== undefined && { halfDay: body.halfDay }),
     })
     .where(and(eq(leaveRecords.id, id), eq(leaveRecords.userId, userId)))
     .returning();
@@ -46,6 +47,7 @@ export async function PUT(
     source: updated.source,
     reason: updated.reason,
     status: updated.status ?? "actual",
+    halfDay: updated.halfDay ?? null,
     createdAt: updated.createdAt?.toISOString() ?? new Date().toISOString(),
   });
 }

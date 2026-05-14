@@ -148,6 +148,7 @@ export async function GET(req: NextRequest) {
       source: r.source,
       reason: r.reason,
       status: r.status ?? "actual",
+      halfDay: r.halfDay ?? null,
       createdAt: r.createdAt?.toISOString() ?? new Date().toISOString(),
     })),
   });
@@ -178,6 +179,7 @@ export async function POST(req: NextRequest) {
       source: body.source,
       reason: body.reason,
       status: body.status ?? "actual",
+      halfDay: body.halfDay ?? null,
     })
     .returning();
 
@@ -190,6 +192,7 @@ export async function POST(req: NextRequest) {
     source: record.source,
     reason: record.reason,
     status: record.status ?? "actual",
+    halfDay: record.halfDay ?? null,
     createdAt: record.createdAt?.toISOString() ?? new Date().toISOString(),
   });
 }

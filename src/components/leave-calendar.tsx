@@ -128,8 +128,10 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
     const sunday = isSunday(day);
     const today = isToday(day);
     const inMonth = isSameMonth(day, currentMonth);
-    const leaveRecords = records.filter((r) => isInLeaveRange(day, r));
-    const onLeave = leaveRecords.length > 0 && !weekend;
+    const actualLeaves = records.filter((r) => r.status === "actual" && isInLeaveRange(day, r));
+    const plannedLeaves = records.filter((r) => r.status === "planned" && isInLeaveRange(day, r));
+    const onLeave = actualLeaves.length > 0 && !weekend;
+    const onPlannedLeave = plannedLeaves.length > 0 && !weekend;
     const longWeekend = isLongWeekend(day, holidays);
 
     return {
@@ -140,8 +142,10 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
       sunday,
       today,
       inMonth,
-      leaveRecords,
+      actualLeaves,
+      plannedLeaves,
       onLeave,
+      onPlannedLeave,
       longWeekend,
     };
   }
@@ -212,6 +216,9 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
             } else if (info.onLeave) {
               bgClass = "bg-teal-100 dark:bg-teal-900/40";
               textClass = "text-teal-800 dark:text-teal-200";
+            } else if (info.onPlannedLeave) {
+              bgClass = "bg-teal-50 dark:bg-teal-950/30 border border-dashed border-teal-300 dark:border-teal-700";
+              textClass = "text-teal-600 dark:text-teal-400";
             } else if (info.holiday) {
               bgClass = "bg-amber-100 dark:bg-amber-900/40";
               textClass = "text-amber-800 dark:text-amber-200";
@@ -233,10 +240,12 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
                   info.holiday
                     ? `${info.holiday.name} (${info.holiday.localName})`
                     : info.onLeave
-                      ? info.leaveRecords.map((r) => r.type).join(", ")
-                      : info.longWeekend
-                        ? "Long weekend"
-                        : undefined
+                      ? `Leave: ${info.actualLeaves.map((r) => r.type).join(", ")}`
+                      : info.onPlannedLeave
+                        ? `Planned: ${info.plannedLeaves.map((r) => r.type).join(", ")}`
+                        : info.longWeekend
+                          ? "Long weekend"
+                          : undefined
                 }
               >
                 <span
@@ -250,6 +259,9 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
                 {info.inMonth && info.onLeave && (
                   <span className="absolute bottom-0.5 size-1.5 rounded-full bg-teal-500" />
                 )}
+                {info.inMonth && info.onPlannedLeave && !info.onLeave && (
+                  <span className="absolute bottom-0.5 size-1.5 rounded-full bg-teal-300 dark:bg-teal-600" />
+                )}
               </div>
             );
           })}
@@ -260,6 +272,10 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
           <span className="flex items-center gap-1.5">
             <span className="size-2.5 rounded-full bg-red-50 ring-1 ring-red-200 dark:bg-red-950 dark:ring-red-800" />
             Weekend
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="size-2.5 rounded-full bg-teal-300 dark:bg-teal-600" />
+            Planned
           </span>
           <span className="flex items-center gap-1.5">
             <span className="size-2.5 rounded-full bg-amber-500" />

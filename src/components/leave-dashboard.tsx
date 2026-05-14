@@ -25,6 +25,7 @@ import {
 } from "@/lib/types";
 import { exportToCsv } from "@/lib/export-csv";
 import { exportToPdf } from "@/lib/export-pdf";
+import { findOverlappingRecords } from "@/lib/leave-utils";
 import {
   Card,
   CardContent,
@@ -75,9 +76,13 @@ import {
   Pencil,
   Trash2,
   CalendarRange,
+  AlertTriangle,
   BarChart3,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
+  FileDown,
+  FileUp,
   Info,
 } from "lucide-react";
 
@@ -121,6 +126,7 @@ export function LeaveDashboard() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [formStatus, setFormStatus] = useState<"actual" | "planned">("actual");
+  const [formHalfDay, setFormHalfDay] = useState<"AM" | "PM" | null>(null);
   const [historyTab, setHistoryTab] = useState<"actual" | "planned">("actual");
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
@@ -143,6 +149,7 @@ export function LeaveDashboard() {
   const [editType, setEditType] = useState<LeaveType>("Vacation");
   const [editSource, setEditSource] = useState<LeaveSource>("Current Year");
   const [editReason, setEditReason] = useState("");
+  const [editHalfDay, setEditHalfDay] = useState<"AM" | "PM" | null>(null);
 
   // Auto-calculate business days for add form
   useEffect(() => {
@@ -206,6 +213,24 @@ export function LeaveDashboard() {
   const forecast = getEndOfYearForecast(state.carryOver, totalUsed, empStatus, employeeStartDate);
   const typeSummary = getLeaveTypeSummary(state.records);
 
+  // Overlap detection
+  const formOverlaps = formStartDate && formEndDate
+    ? findOverlappingRecords(state.records, formStartDate, formEndDate)
+    : [];
+  const editOverlaps = editStartDate && editEndDate && editRecord
+    ? findOverlappingRecords(state.records, editStartDate, editEndDate, editRecord.id)
+    : [];
+
+  // Carry-over expiry reminder (show in Jan-March when there's unused carry-over)
+  const currentMonth = now.getMonth(); // 0-indexed
+  const showCarryOverReminder =
+    isViewingCurrentYear &&
+    !carryOverExpired &&
+    carryOver > 0 &&
+    remainingCarryOver > 0 &&
+    currentMonth >= 0 &&
+    currentMonth <= 2; // Jan, Feb, Mar
+
   const maxDaysForSource =
     formSource === "Carry-over"
       ? (carryOverExpired ? 0 : remainingCarryOver)
@@ -220,6 +245,7 @@ export function LeaveDashboard() {
     setFormSource("Current Year");
     setFormReason("");
     setFormStatus("actual");
+    setFormHalfDay(null);
   }
 
   function handleAddLeave(e: React.FormEvent) {
@@ -244,6 +270,7 @@ export function LeaveDashboard() {
       source: formSource,
       reason: formReason.trim(),
       status: formStatus,
+      halfDay: days === 0.5 ? formHalfDay : null,
     });
     resetAddForm();
     setDialogOpen(false);
@@ -281,6 +308,7 @@ export function LeaveDashboard() {
     setEditType(record.type);
     setEditSource(record.source);
     setEditReason(record.reason);
+    setEditHalfDay(record.halfDay ?? null);
     setEditDialogOpen(true);
   }
 
@@ -389,6 +417,16 @@ export function LeaveDashboard() {
             Auto-rolled over from{" "}
             {state.previousYears![state.previousYears!.length - 1].year}.
             Carry-over: <strong>{carryOver} days</strong> (capped at 5).
+          </p>
+        </div>
+      )}
+
+      {/* Carry-over Expiry Reminder */}
+      {showCarryOverReminder && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/30">
+          <AlertTriangle className="size-4 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            You have <strong>{remainingCarryOver.toFixed(1)} carry-over days</strong> expiring on <strong>March 31</strong>. Use them or they will be forfeited.
           </p>
         </div>
       )}
@@ -710,7 +748,7 @@ export function LeaveDashboard() {
                 <div className="flex items-center gap-2 rounded-lg bg-accent/50 px-3 py-2">
                   <CalendarRange className="size-3.5 text-primary shrink-0" />
                   <p className="text-xs text-muted-foreground">
-                    {countBusinessDays(formStartDate, formEndDate, holidaySet)} business
+                    {countBusinessDays(formStartDate, formEndDate, holidaySet)}{" "}
                     business day(s) (excl. weekends &amp; holidays).{" "}
                     <button
                       type="button"
@@ -801,6 +839,32 @@ export function LeaveDashboard() {
                   required
                 />
               </div>
+              {parseFloat(formDays) === 0.5 && (
+                <div className="space-y-2">
+                  <Label>Half-day</Label>
+                  <Select
+                    value={formHalfDay ?? "AM"}
+                    onValueChange={(val) => setFormHalfDay(val as "AM" | "PM")}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="AM">Morning (AM)</SelectItem>
+                      <SelectItem value="PM">Afternoon (PM)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {formOverlaps.length > 0 && (
+                <div className="flex items-center gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
+                  <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Overlaps with {formOverlaps.length} existing leave(s):{" "}
+                    {formOverlaps.map((r) => r.type).join(", ")}
+                  </p>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="leave-reason">Reason / Notes</Label>
                 <Input
@@ -955,6 +1019,61 @@ export function LeaveDashboard() {
             </Button>
           </>
         )}
+        <a href="/policy">
+          <Button variant="outline" className="gap-2">
+            <BookOpen className="size-4" />
+            Policy
+          </Button>
+        </a>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={async () => {
+            const res = await fetch("/api/backup");
+            if (res.ok) {
+              const data = await res.json();
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `leave-backup-${new Date().toISOString().split("T")[0]}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }
+          }}
+        >
+          <FileDown className="size-4" />
+          Backup
+        </Button>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".json";
+            input.onchange = async (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (!file) return;
+              const text = await file.text();
+              const data = JSON.parse(text);
+              if (confirm(`Restore ${data.records?.length ?? 0} records and ${data.settings?.length ?? 0} year settings? This will replace all current data.`)) {
+                const res = await fetch("/api/backup", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: text,
+                });
+                if (res.ok) {
+                  window.location.reload();
+                }
+              }
+            };
+            input.click();
+          }}
+        >
+          <FileUp className="size-4" />
+          Restore
+        </Button>
       </div>}
 
       <Separator />
@@ -1128,7 +1247,7 @@ export function LeaveDashboard() {
                       </TableCell>
                       <TableCell>
                         <span className="inline-flex items-center justify-center min-w-[2rem] rounded-md bg-secondary px-2 py-0.5 text-xs font-semibold tabular-nums">
-                          {record.days}
+                          {record.days}{record.halfDay ? ` ${record.halfDay}` : ""}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -1294,6 +1413,32 @@ export function LeaveDashboard() {
                 required
               />
             </div>
+            {parseFloat(editDays) === 0.5 && (
+              <div className="space-y-2">
+                <Label>Half-day</Label>
+                <Select
+                  value={editHalfDay ?? "AM"}
+                  onValueChange={(val) => setEditHalfDay(val as "AM" | "PM")}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AM">Morning (AM)</SelectItem>
+                    <SelectItem value="PM">Afternoon (PM)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {editOverlaps.length > 0 && (
+              <div className="flex items-center gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
+                <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Overlaps with {editOverlaps.length} existing leave(s):{" "}
+                  {editOverlaps.map((r) => r.type).join(", ")}
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="edit-reason">Reason / Notes</Label>
               <Input

@@ -17,6 +17,8 @@ export const LEAVE_STATUSES = ["actual", "planned"] as const;
 
 export type LeaveStatus = (typeof LEAVE_STATUSES)[number];
 
+export type HalfDay = "AM" | "PM" | null;
+
 export interface LeaveRecord {
   id: string;
   startDate: string; // ISO date string
@@ -26,6 +28,7 @@ export interface LeaveRecord {
   source: LeaveSource;
   reason: string;
   status: LeaveStatus;
+  halfDay: HalfDay; // only when days is 0.5
   createdAt: string;
 }
 

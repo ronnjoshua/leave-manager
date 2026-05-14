@@ -108,5 +108,6 @@ export const leaveRecords = pgTable("leave_record", {
   source: text("source").notNull(),
   reason: text("reason").notNull(),
   status: text("status").notNull().default("actual"), // "actual" or "planned"
+  halfDay: text("half_day"), // null, "AM", or "PM" — only when days is 0.5
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
 });
