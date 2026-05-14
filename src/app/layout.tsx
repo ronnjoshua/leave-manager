@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { LoadingBar } from "@/components/loading-bar";
 import "./globals.css";
@@ -13,9 +13,26 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#2f9e84",
+};
+
 export const metadata: Metadata = {
-  title: "Leave Calculator",
-  description: "Track and calculate your leave balance",
+  title: "Leave Tracker",
+  description: "Track your leave balance, accruals, and time off",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Leave Tracker",
+  },
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/icon-192.png",
+  },
 };
 
 export default function RootLayout({
