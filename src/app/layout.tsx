@@ -30,14 +30,6 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "Leave Tracker",
   },
-  icons: {
-    icon: [
-      { url: "/images/leave-tracker-icon.png", type: "image/png" },
-    ],
-    apple: [
-      { url: "/images/leave-tracker-icon.png", type: "image/png" },
-    ],
-  },
 };
 
 export default function RootLayout({
