@@ -15,17 +15,17 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="mx-auto max-w-5xl px-6 py-4">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center size-10 rounded-xl bg-primary/10">
-                <TreePalm className="size-5 text-primary" />
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="flex items-center justify-center size-9 sm:size-10 rounded-xl bg-primary/10">
+                <TreePalm className="size-4 sm:size-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-xl font-semibold tracking-tight">
+                <h1 className="text-lg sm:text-xl font-semibold tracking-tight">
                   Leave Tracker
                 </h1>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
                   Manage your balance, accruals, and time off
                 </p>
               </div>
