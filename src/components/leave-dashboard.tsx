@@ -162,13 +162,21 @@ export function LeaveDashboard() {
 
   const now = new Date();
   const year = state.year;
+  const currentYear = state.currentYear ?? new Date().getFullYear();
+  // For past years use Dec 31, for future years use Jan 1, for current year use today
+  const referenceDate =
+    year < currentYear
+      ? new Date(year, 11, 31)
+      : year > currentYear
+        ? new Date(year, 0, 1)
+        : now;
   const empStatus = state.employmentStatus ?? "regular";
   const employeeStartDate = state.startDate;
   const carryOver = calculateCarryOver(state.carryOver);
-  const accrued = getAccruedLeaves(year, now, empStatus, employeeStartDate);
-  const available = getAvailableLeaves(carryOver, year, totalUsed, now, empStatus, employeeStartDate);
+  const accrued = getAccruedLeaves(year, referenceDate, empStatus, employeeStartDate);
+  const available = getAvailableLeaves(carryOver, year, totalUsed, referenceDate, empStatus, employeeStartDate);
   const totalPossible = getTotalPossibleLeaves(state.carryOver, empStatus, employeeStartDate);
-  const completedMonths = getCompletedMonths(year, now);
+  const completedMonths = getCompletedMonths(year, referenceDate);
   const remainingCarryOver = getRemainingCarryOver(
     state.carryOver,
     state.records
@@ -177,7 +185,7 @@ export function LeaveDashboard() {
     year,
     state.carryOver,
     state.records,
-    now,
+    referenceDate,
     empStatus,
     employeeStartDate
   );
