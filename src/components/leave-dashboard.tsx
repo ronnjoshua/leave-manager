@@ -117,6 +117,7 @@ export function LeaveDashboard() {
     updateSettings,
     totalUsed,
     totalPlanned,
+    carryOverUsed,
   } = useLeaveState();
 
   const viewYear = state?.year ?? new Date().getFullYear();
@@ -192,7 +193,7 @@ export function LeaveDashboard() {
   const employeeStartDate = state.startDate;
   const carryOver = calculateCarryOver(state.carryOver);
   const accrued = getAccruedLeaves(year, referenceDate, empStatus, employeeStartDate);
-  const available = getAvailableLeaves(carryOver, year, totalUsed, referenceDate, empStatus, employeeStartDate);
+  const available = getAvailableLeaves(carryOver, year, totalUsed, referenceDate, empStatus, employeeStartDate, carryOverUsed);
   const totalPossible = getTotalPossibleLeaves(state.carryOver, empStatus, employeeStartDate);
   const completedMonths = getCompletedMonths(year, referenceDate);
   const carryOverExpired = isCarryOverExpired(year, referenceDate);

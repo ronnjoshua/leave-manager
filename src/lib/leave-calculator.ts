@@ -126,12 +126,20 @@ export function getAvailableLeaves(
   usedLeaves: number,
   referenceDate: Date,
   employmentStatus: EmploymentStatus = "regular",
-  employeeStartDate?: string | null
+  employeeStartDate?: string | null,
+  carryOverUsed: number = 0
 ): number {
   const accrued = getAccruedLeaves(year, referenceDate, employmentStatus, employeeStartDate);
   const expired = isCarryOverExpired(year, referenceDate);
-  const usedFromCarryOver = expired ? 0 : calculateCarryOver(carryOver);
-  return usedFromCarryOver + accrued - usedLeaves;
+
+  if (expired) {
+    // After March 31: carry-over is gone, only count current year leaves
+    const currentYearUsed = usedLeaves - carryOverUsed;
+    return accrued - currentYearUsed;
+  }
+
+  // Before March 31: full carry-over + accrued - all used
+  return calculateCarryOver(carryOver) + accrued - usedLeaves;
 }
 
 export function getRemainingCarryOver(
