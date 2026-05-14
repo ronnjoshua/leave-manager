@@ -10,6 +10,7 @@ import {
   calculateCarryOver,
   getCompletedMonths,
   getRemainingCarryOver,
+  isCarryOverExpired,
   getMonthlyBreakdown,
   getEndOfYearForecast,
   getLeaveTypeSummary,
@@ -187,9 +188,12 @@ export function LeaveDashboard() {
   const available = getAvailableLeaves(carryOver, year, totalUsed, referenceDate, empStatus, employeeStartDate);
   const totalPossible = getTotalPossibleLeaves(state.carryOver, empStatus, employeeStartDate);
   const completedMonths = getCompletedMonths(year, referenceDate);
+  const carryOverExpired = isCarryOverExpired(year, referenceDate);
   const remainingCarryOver = getRemainingCarryOver(
     state.carryOver,
-    state.records
+    state.records,
+    year,
+    referenceDate
   );
   const monthlyBreakdown = getMonthlyBreakdown(
     year,
@@ -204,8 +208,8 @@ export function LeaveDashboard() {
 
   const maxDaysForSource =
     formSource === "Carry-over"
-      ? remainingCarryOver
-      : available - remainingCarryOver;
+      ? (carryOverExpired ? 0 : remainingCarryOver)
+      : available;
 
   function resetAddForm() {
     setFormStartDate("");
@@ -510,7 +514,9 @@ export function LeaveDashboard() {
               {carryOver.toFixed(1)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {remainingCarryOver.toFixed(1)} unused
+              {carryOverExpired
+                ? "expired (after Mar 31)"
+                : `${remainingCarryOver.toFixed(1)} unused`}
             </p>
           </CardContent>
         </Card>
@@ -757,10 +763,22 @@ export function LeaveDashboard() {
                 </div>
               </div>
               {formSource === "Carry-over" && (
-                <div className="flex items-center gap-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 px-3 py-2">
-                  <ArrowRightLeft className="size-3.5 text-blue-500 shrink-0" />
-                  <p className="text-xs text-blue-700 dark:text-blue-300">
-                    Remaining carry-over: {remainingCarryOver.toFixed(1)} days
+                <div className={`flex items-center gap-2 rounded-lg px-3 py-2 ${
+                  carryOverExpired
+                    ? "bg-red-50 dark:bg-red-950/30"
+                    : "bg-blue-50 dark:bg-blue-950/30"
+                }`}>
+                  <ArrowRightLeft className={`size-3.5 shrink-0 ${
+                    carryOverExpired ? "text-red-500" : "text-blue-500"
+                  }`} />
+                  <p className={`text-xs ${
+                    carryOverExpired
+                      ? "text-red-700 dark:text-red-300"
+                      : "text-blue-700 dark:text-blue-300"
+                  }`}>
+                    {carryOverExpired
+                      ? "Carry-over has expired (deadline: March 31). Use Current Year instead."
+                      : `Remaining carry-over: ${remainingCarryOver.toFixed(1)} days (use by March 31)`}
                   </p>
                 </div>
               )}

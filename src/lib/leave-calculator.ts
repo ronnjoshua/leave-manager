@@ -111,6 +111,15 @@ export function calculateCarryOver(remainingFromLastYear: number): number {
   return Math.min(remainingFromLastYear, MAX_CARRY_OVER);
 }
 
+/**
+ * Check if carry-over leaves have expired.
+ * Carry-over can only be used until March 31 of the current year.
+ */
+export function isCarryOverExpired(year: number, referenceDate: Date): boolean {
+  const cutoff = new Date(year, 2, 31); // March 31
+  return referenceDate > cutoff;
+}
+
 export function getAvailableLeaves(
   carryOver: number,
   year: number,
@@ -120,13 +129,21 @@ export function getAvailableLeaves(
   employeeStartDate?: string | null
 ): number {
   const accrued = getAccruedLeaves(year, referenceDate, employmentStatus, employeeStartDate);
-  return calculateCarryOver(carryOver) + accrued - usedLeaves;
+  const expired = isCarryOverExpired(year, referenceDate);
+  const usedFromCarryOver = expired ? 0 : calculateCarryOver(carryOver);
+  return usedFromCarryOver + accrued - usedLeaves;
 }
 
 export function getRemainingCarryOver(
   carryOver: number,
-  records: LeaveRecord[]
+  records: LeaveRecord[],
+  year?: number,
+  referenceDate?: Date
 ): number {
+  // If carry-over has expired, nothing remains
+  if (year && referenceDate && isCarryOverExpired(year, referenceDate)) {
+    return 0;
+  }
   const cappedCarryOver = calculateCarryOver(carryOver);
   const usedFromCarryOver = records
     .filter((r) => r.source === "Carry-over")
