@@ -316,32 +316,34 @@ export function LeaveDashboard() {
   return (
     <div className="space-y-8">
       {/* Year Selector */}
-      <div className="flex items-center justify-center gap-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="size-8 p-0"
-          onClick={() => switchYear(year - 1)}
-        >
-          <ChevronLeft className="size-4" />
-        </Button>
-        <div className="flex items-center gap-2">
-          {availableYears.map((y) => (
-            <Button
-              key={y}
-              variant={y === year ? "default" : "outline"}
-              size="sm"
-              onClick={() => switchYear(y)}
-            >
-              {y}
-            </Button>
-          ))}
-          {!availableYears.includes(year) && (
-            <Button variant="default" size="sm">
-              {year}
-            </Button>
-          )}
-        </div>
+      <div className="flex flex-col items-center gap-1.5">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Viewing Year</p>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="size-8 p-0"
+            onClick={() => switchYear(year - 1)}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <div className="flex items-center gap-2">
+            {availableYears.map((y) => (
+              <Button
+                key={y}
+                variant={y === year ? "default" : "outline"}
+                size="sm"
+                onClick={() => switchYear(y)}
+              >
+                {y}
+              </Button>
+            ))}
+            {!availableYears.includes(year) && (
+              <Button variant="default" size="sm">
+                {year}
+              </Button>
+            )}
+          </div>
         <Button
           variant="ghost"
           size="sm"
@@ -350,6 +352,7 @@ export function LeaveDashboard() {
         >
           <ChevronRight className="size-4" />
         </Button>
+        </div>
       </div>
 
       {/* Viewing Past Year Notice */}
