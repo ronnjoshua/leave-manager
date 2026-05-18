@@ -644,7 +644,16 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
       </Card>
 
       {/* Calendar */}
-      <LeaveCalendar records={state.records} year={year} />
+      <LeaveCalendar
+        records={state.records}
+        year={year}
+        onDateClick={isViewingCurrentYear ? (startDate, endDate) => {
+          setFormStartDate(startDate);
+          setFormEndDate(endDate);
+          setFormDaysManual(false);
+          setDialogOpen(true);
+        } : undefined}
+      />
 
       {/* Leave Type Summary */}
       {typeSummary.length > 0 && (

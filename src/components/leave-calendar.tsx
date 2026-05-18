@@ -29,7 +29,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { LeaveRecord } from "@/lib/types";
 
 interface Holiday {
@@ -41,6 +41,7 @@ interface Holiday {
 interface LeaveCalendarProps {
   records: LeaveRecord[];
   year: number;
+  onDateClick?: (startDate: string, endDate: string) => void;
 }
 
 function isInLeaveRange(day: Date, record: LeaveRecord): boolean {
@@ -56,15 +57,11 @@ function isLongWeekend(
   day: Date,
   holidays: Map<string, Holiday>
 ): boolean {
-  // A long weekend is when a holiday falls on Mon (Sat+Sun+Mon) or Fri (Fri+Sat+Sun)
-  // or Thu (Thu+Fri+Sat+Sun) or Tue (Sat+Sun+Mon+Tue)
   const key = format(day, "yyyy-MM-dd");
   if (!holidays.has(key) && !isWeekend(day)) return false;
 
-  // Check if this day is part of a connected stretch of weekends + holidays >= 3 days
   const stretch: Date[] = [day];
 
-  // Look backward
   let prev = new Date(day);
   while (true) {
     prev = new Date(prev.getTime() - 86400000);
@@ -74,7 +71,6 @@ function isLongWeekend(
     } else break;
   }
 
-  // Look forward
   let next = new Date(day);
   while (true) {
     next = new Date(next.getTime() + 86400000);
@@ -87,10 +83,15 @@ function isLongWeekend(
   return stretch.length >= 3;
 }
 
-export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
+export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [holidays, setHolidays] = useState<Map<string, Holiday>>(new Map());
   const [loadingHolidays, setLoadingHolidays] = useState(true);
+
+  // Date range selection
+  const [selectStart, setSelectStart] = useState<string | null>(null);
+  const [selectEnd, setSelectEnd] = useState<string | null>(null);
+  const [selecting, setSelecting] = useState(false);
 
   const fetchHolidays = useCallback(async () => {
     setLoadingHolidays(true);
@@ -120,6 +121,48 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
 
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+  function handleDayClick(day: Date, info: ReturnType<typeof getDayInfo>) {
+    if (!onDateClick || !info.inMonth) return;
+
+    const dateStr = format(day, "yyyy-MM-dd");
+
+    if (!selecting) {
+      // First click — start selection
+      setSelectStart(dateStr);
+      setSelectEnd(dateStr);
+      setSelecting(true);
+    } else {
+      // Second click — finish selection
+      setSelecting(false);
+      if (selectStart) {
+        const start = selectStart < dateStr ? selectStart : dateStr;
+        const end = selectStart < dateStr ? dateStr : selectStart;
+        setSelectStart(start);
+        setSelectEnd(end);
+        onDateClick(start, end);
+        // Clear selection after a short delay
+        setTimeout(() => {
+          setSelectStart(null);
+          setSelectEnd(null);
+        }, 300);
+      }
+    }
+  }
+
+  function handleDayHover(day: Date) {
+    if (!selecting || !selectStart) return;
+    const dateStr = format(day, "yyyy-MM-dd");
+    setSelectEnd(dateStr);
+  }
+
+  function isInSelection(day: Date): boolean {
+    if (!selectStart || !selectEnd) return false;
+    const dateStr = format(day, "yyyy-MM-dd");
+    const start = selectStart < selectEnd ? selectStart : selectEnd;
+    const end = selectStart < selectEnd ? selectEnd : selectStart;
+    return dateStr >= start && dateStr <= end;
+  }
+
   function getDayInfo(day: Date) {
     const key = format(day, "yyyy-MM-dd");
     const holiday = holidays.get(key);
@@ -133,6 +176,7 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
     const onLeave = actualLeaves.length > 0 && !weekend;
     const onPlannedLeave = plannedLeaves.length > 0 && !weekend;
     const longWeekend = isLongWeekend(day, holidays);
+    const selected = isInSelection(day) && inMonth;
 
     return {
       key,
@@ -147,10 +191,10 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
       onLeave,
       onPlannedLeave,
       longWeekend,
+      selected,
     };
   }
 
-  // Collect this month's holidays for the legend
   const monthHolidays = days
     .filter((d) => isSameMonth(d, currentMonth) && holidays.has(format(d, "yyyy-MM-dd")))
     .map((d) => ({
@@ -185,6 +229,13 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
             </Button>
           </div>
         </div>
+        {onDateClick && (
+          <p className="text-xs text-muted-foreground mt-1">
+            {selecting
+              ? "Click another date to select a range"
+              : "Click a date to log a leave"}
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         {/* Week day headers */}
@@ -213,6 +264,9 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
 
             if (!info.inMonth) {
               textClass = "text-muted-foreground/30";
+            } else if (info.selected) {
+              bgClass = "bg-primary/20 dark:bg-primary/30";
+              textClass = "text-primary font-semibold";
             } else if (info.onLeave) {
               bgClass = "bg-teal-100 dark:bg-teal-900/40";
               textClass = "text-teal-800 dark:text-teal-200";
@@ -230,12 +284,14 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
               textClass = "text-red-400 dark:text-red-400";
             }
 
+            const clickable = onDateClick && info.inMonth;
+
             return (
               <div
                 key={info.key}
                 className={`relative flex flex-col items-center justify-center rounded-lg p-1 min-h-[40px] text-sm transition-colors ${bgClass} ${
                   info.today ? "ring-2 ring-primary ring-offset-1" : ""
-                }`}
+                } ${clickable ? "cursor-pointer hover:bg-primary/10" : ""}`}
                 title={
                   info.holiday
                     ? `${info.holiday.name} (${info.holiday.localName})`
@@ -247,6 +303,8 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
                           ? "Long weekend"
                           : undefined
                 }
+                onClick={() => clickable && handleDayClick(day, info)}
+                onMouseEnter={() => handleDayHover(day)}
               >
                 <span
                   className={`text-xs tabular-nums font-medium ${textClass}`}
@@ -274,16 +332,16 @@ export function LeaveCalendar({ records, year }: LeaveCalendarProps) {
             Weekend
           </span>
           <span className="flex items-center gap-1.5">
+            <span className="size-2.5 rounded-full bg-teal-500" />
+            On Leave
+          </span>
+          <span className="flex items-center gap-1.5">
             <span className="size-2.5 rounded-full bg-teal-300 dark:bg-teal-600" />
             Planned
           </span>
           <span className="flex items-center gap-1.5">
             <span className="size-2.5 rounded-full bg-amber-500" />
             Holiday
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-teal-500" />
-            On Leave
           </span>
           <span className="flex items-center gap-1.5">
             <span className="size-2.5 rounded-full bg-purple-300 dark:bg-purple-600" />
