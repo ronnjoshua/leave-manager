@@ -149,6 +149,20 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
     }
   }
 
+  // Cancel selection on Escape key
+  useEffect(() => {
+    if (!selecting) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setSelecting(false);
+        setSelectStart(null);
+        setSelectEnd(null);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selecting]);
+
   function handleDayHover(day: Date) {
     if (!selecting || !selectStart) return;
     const dateStr = format(day, "yyyy-MM-dd");
@@ -232,7 +246,7 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
         {onDateClick && (
           <p className="text-xs text-muted-foreground mt-1">
             {selecting
-              ? "Click another date to select a range"
+              ? "Click another date to select a range \u00B7 Esc to cancel"
               : "Click a date to log a leave"}
           </p>
         )}
