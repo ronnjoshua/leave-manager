@@ -362,20 +362,39 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* Greeting */}
-      {isViewingCurrentYear && userName && (
-        <div className="animate-fade-up">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-            {getGreeting()}, {userName.split(" ")[0]}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            You have <span className="font-semibold text-primary">{available.toFixed(1)} days</span> available
-            {totalPlanned > 0 && (
-              <> &middot; <span className="font-semibold text-foreground">{totalPlanned.toFixed(1)}</span> planned</>
-            )}
-          </p>
+      {/* Hero Balance Card */}
+      <div className="animate-fade-up rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-teal-700 p-5 sm:p-8 text-primary-foreground relative overflow-hidden">
+        <div className="absolute top-0 right-0 size-48 sm:size-64 rounded-full bg-white/[0.06] -translate-y-1/3 translate-x-1/4" />
+        <div className="absolute bottom-0 left-0 size-32 sm:size-40 rounded-full bg-white/[0.04] translate-y-1/2 -translate-x-1/4" />
+        <div className="relative">
+          {isViewingCurrentYear && userName && (
+            <p className="text-primary-foreground/70 text-sm font-medium">
+              {getGreeting()}, {userName.split(" ")[0]}
+            </p>
+          )}
+          <div className="mt-2 sm:mt-3 flex items-end gap-3">
+            <span className="text-5xl sm:text-6xl font-bold tabular-nums tracking-tighter leading-none">
+              {available.toFixed(1)}
+            </span>
+            <span className="text-primary-foreground/60 text-lg sm:text-xl font-medium mb-1">
+              days available
+            </span>
+          </div>
+          <div className="mt-4 sm:mt-5 flex flex-wrap gap-x-6 gap-y-1 text-sm text-primary-foreground/70">
+            <span>{accrued.toFixed(1)} accrued</span>
+            <span>{totalUsed.toFixed(1)} used</span>
+            {totalPlanned > 0 && <span>{totalPlanned.toFixed(1)} planned</span>}
+            <span>{forecast.toFixed(1)} forecast</span>
+          </div>
+          {/* Mini progress bar */}
+          <div className="mt-4 h-1.5 w-full max-w-xs rounded-full bg-white/20 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-white/60 transition-all duration-700"
+              style={{ width: `${Math.min((available / totalPossible) * 100, 100)}%` }}
+            />
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Year Selector */}
       <div className="flex flex-col items-center gap-1.5">
@@ -488,162 +507,43 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
         </p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
-        <Card className="animate-fade-up stagger-1 group relative overflow-hidden border-border/50 hover:border-primary/30 transition-colors duration-300">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-transparent" />
-          <CardHeader className="pb-1 relative">
-            <div className="flex items-center justify-between">
-              <CardDescription className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-primary/70">
-                Available
-              </CardDescription>
-              <div className="flex items-center justify-center size-7 sm:size-8 rounded-lg bg-primary/10 group-hover:bg-primary/15 transition-colors">
-                <CalendarDays className="size-3.5 sm:size-4 text-primary" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative">
-            <p className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight">
-              {available.toFixed(1)}
-            </p>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              {totalPlanned > 0
-                ? `${(available - totalPlanned).toFixed(1)} after planned`
-                : "days remaining"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="animate-fade-up stagger-2 group relative overflow-hidden border-border/50 hover:border-teal-500/30 transition-colors duration-300">
-          <div className="absolute inset-0 bg-gradient-to-br from-teal-500/[0.03] to-transparent" />
-          <CardHeader className="pb-1 relative">
-            <div className="flex items-center justify-between">
-              <CardDescription className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-teal-600/70">
-                Accrued
-              </CardDescription>
-              <div className="flex items-center justify-center size-7 sm:size-8 rounded-lg bg-teal-500/10 group-hover:bg-teal-500/15 transition-colors">
-                <TrendingUp className="size-3.5 sm:size-4 text-teal-600" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative">
-            <p className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight">
-              {accrued.toFixed(1)}
-            </p>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              {completedMonths} of 12 months
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="animate-fade-up stagger-3 group relative overflow-hidden border-border/50 hover:border-amber-500/30 transition-colors duration-300">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.03] to-transparent" />
-          <CardHeader className="pb-1 relative">
-            <div className="flex items-center justify-between">
-              <CardDescription className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-amber-600/70">
-                Used
-              </CardDescription>
-              <div className="flex items-center justify-center size-7 sm:size-8 rounded-lg bg-amber-500/10 group-hover:bg-amber-500/15 transition-colors">
-                <MinusCircle className="size-3.5 sm:size-4 text-amber-600" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative">
-            <p className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight">
-              {totalUsed.toFixed(1)}
-            </p>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              {state.records.length} leave
-              {state.records.length !== 1 ? "s" : ""} taken
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="animate-fade-up stagger-4 group relative overflow-hidden border-border/50 hover:border-blue-500/30 transition-colors duration-300">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.03] to-transparent" />
-          <CardHeader className="pb-1 relative">
-            <div className="flex items-center justify-between">
-              <CardDescription className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-blue-600/70">
-                Carry-over
-              </CardDescription>
-              <div className="flex items-center justify-center size-7 sm:size-8 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/15 transition-colors">
-                <ArrowRightLeft className="size-3.5 sm:size-4 text-blue-600" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative">
-            <p className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight">
-              {carryOver.toFixed(1)}
-            </p>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              {carryOverExpired
-                ? "expired (after Mar 31)"
-                : `${remainingCarryOver.toFixed(1)} unused`}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="animate-fade-up stagger-5 group relative overflow-hidden border-border/50 hover:border-purple-500/30 transition-colors duration-300">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.03] to-transparent" />
-          <CardHeader className="pb-1 relative">
-            <div className="flex items-center justify-between">
-              <CardDescription className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-purple-600/70">
-                Forecast
-              </CardDescription>
-              <div className="flex items-center justify-center size-7 sm:size-8 rounded-lg bg-purple-500/10 group-hover:bg-purple-500/15 transition-colors">
-                <Sparkles className="size-3.5 sm:size-4 text-purple-600" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative">
-            <p className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight">
-              {forecast.toFixed(1)}
-            </p>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
-              by Dec {year}
-            </p>
-          </CardContent>
-        </Card>
+      {/* Supporting Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 animate-fade-up stagger-2">
+        <div className="rounded-xl border border-border/50 bg-card p-3 sm:p-4 hover:border-teal-500/30 transition-colors">
+          <div className="flex items-center gap-2 text-teal-600">
+            <TrendingUp className="size-3.5" />
+            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Accrued</span>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold tabular-nums mt-1">{accrued.toFixed(1)}</p>
+          <p className="text-[10px] text-muted-foreground">{completedMonths}/12 months</p>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card p-3 sm:p-4 hover:border-amber-500/30 transition-colors">
+          <div className="flex items-center gap-2 text-amber-600">
+            <MinusCircle className="size-3.5" />
+            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Used</span>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold tabular-nums mt-1">{totalUsed.toFixed(1)}</p>
+          <p className="text-[10px] text-muted-foreground">{state.records.filter(r => r.status === "actual").length} leaves taken</p>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card p-3 sm:p-4 hover:border-blue-500/30 transition-colors">
+          <div className="flex items-center gap-2 text-blue-600">
+            <ArrowRightLeft className="size-3.5" />
+            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Carry-over</span>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold tabular-nums mt-1">{carryOver.toFixed(1)}</p>
+          <p className="text-[10px] text-muted-foreground">
+            {carryOverExpired ? "expired Mar 31" : `${remainingCarryOver.toFixed(1)} unused`}
+          </p>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card p-3 sm:p-4 hover:border-purple-500/30 transition-colors">
+          <div className="flex items-center gap-2 text-purple-600">
+            <Sparkles className="size-3.5" />
+            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Forecast</span>
+          </div>
+          <p className="text-xl sm:text-2xl font-bold tabular-nums mt-1">{forecast.toFixed(1)}</p>
+          <p className="text-[10px] text-muted-foreground">by Dec {year}</p>
+        </div>
       </div>
-
-      {/* Progress bar */}
-      <Card className="animate-fade-up border-border/50">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-sm font-semibold">
-                Leave Balance
-              </CardTitle>
-              <CardDescription className="mt-0.5">
-                {available.toFixed(1)} of {totalPossible.toFixed(1)} total
-                possible days
-              </CardDescription>
-            </div>
-            <Badge variant="secondary" className="tabular-nums font-semibold text-primary bg-primary/10 hover:bg-primary/15">
-              {((available / totalPossible) * 100).toFixed(0)}%
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="h-3 w-full rounded-full bg-secondary/80 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-700 ease-out relative"
-              style={{
-                width: `${Math.min((available / totalPossible) * 100, 100)}%`,
-              }}
-            >
-              <div className="absolute inset-0 animate-shimmer rounded-full" />
-            </div>
-          </div>
-          <div className="mt-2.5 flex justify-between text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <TrendingUp className="size-3" />
-              2.5 days/month
-            </span>
-            <span>30 days/year + up to 5 carry-over</span>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Calendar */}
       <LeaveCalendar
