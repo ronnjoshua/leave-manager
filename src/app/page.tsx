@@ -14,16 +14,16 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
+      <header className="sticky top-0 z-10 border-b border-border/60 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <div className="flex h-14 sm:h-16 items-center justify-between">
             <div className="flex items-center gap-2.5 sm:gap-3">
-              <AppIcon size={36} />
+              <AppIcon size={32} />
               <div>
-                <h1 className="text-lg sm:text-xl font-semibold tracking-tight">
+                <h1 className="text-base sm:text-lg font-semibold tracking-tight leading-none">
                   Leave Tracker
                 </h1>
-                <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
+                <p className="text-[11px] sm:text-xs text-muted-foreground hidden sm:block mt-0.5">
                   Manage your balance, accruals, and time off
                 </p>
               </div>
@@ -35,9 +35,9 @@ export default async function Home() {
       <main className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
         <LeaveDashboard userName={session.user?.name ?? undefined} />
       </main>
-      <footer className="border-t mt-12">
-        <div className="mx-auto max-w-5xl px-6 py-4">
-          <p className="text-xs text-muted-foreground text-center">
+      <footer className="border-t border-border/40 mt-16">
+        <div className="mx-auto max-w-5xl px-6 py-5">
+          <p className="text-[11px] text-muted-foreground/70 text-center">
             Your data is stored securely and accessible from any device.
           </p>
         </div>
