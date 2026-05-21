@@ -636,7 +636,7 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
       })()}
 
       {/* Actions (current year only) */}
-      {isViewingCurrentYear && <div className="flex flex-wrap gap-3">
+      {isViewingCurrentYear && <div className="flex flex-col sm:flex-row gap-3">
         <Dialog
           open={dialogOpen}
           onOpenChange={(open) => {
@@ -921,19 +921,22 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
           </DialogContent>
         </Dialog>
 
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
         {state.records.length > 0 && (
           <>
             <Button
-              variant="outline"
-              className="gap-2"
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground h-8 text-xs"
               onClick={() => exportToCsv(state.records, year)}
             >
-              <Download className="size-4" />
+              <Download className="size-3.5" />
               CSV
             </Button>
             <Button
-              variant="outline"
-              className="gap-2"
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground h-8 text-xs"
               onClick={() =>
                 exportToPdf({
                   year,
@@ -949,20 +952,21 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
                 })
               }
             >
-              <Download className="size-4" />
+              <Download className="size-3.5" />
               PDF
             </Button>
           </>
         )}
         <a href="/policy">
-          <Button variant="outline" className="gap-2">
-            <BookOpen className="size-4" />
+          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground h-8 text-xs">
+            <BookOpen className="size-3.5" />
             Policy
           </Button>
         </a>
         <Button
-          variant="outline"
-          className="gap-2"
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-muted-foreground h-8 text-xs"
           onClick={async () => {
             const res = await fetch("/api/backup");
             if (res.ok) {
@@ -980,12 +984,13 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
             }
           }}
         >
-          <FileDown className="size-4" />
+          <FileDown className="size-3.5" />
           Backup
         </Button>
         <Button
-          variant="outline"
-          className="gap-2"
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-muted-foreground h-8 text-xs"
           onClick={() => {
             const input = document.createElement("input");
             input.type = "file";
@@ -1012,30 +1017,31 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
             input.click();
           }}
         >
-          <FileUp className="size-4" />
+          <FileUp className="size-3.5" />
           Restore
         </Button>
+        </div>
       </div>}
 
       <Separator />
 
       {/* Monthly Breakdown */}
-      <Card>
+      <Card className="border-border/50">
         <CardHeader>
-          <CardTitle className="text-base">Monthly Breakdown</CardTitle>
+          <CardTitle className="text-base font-semibold">Monthly Breakdown</CardTitle>
           <CardDescription>
             Accrual and usage per month for {year}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Month</TableHead>
-                  <TableHead className="text-right">Accrued</TableHead>
-                  <TableHead className="text-right">Used</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
+                <TableRow className="border-border/50 hover:bg-transparent">
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Month</TableHead>
+                  <TableHead className="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Accrued</TableHead>
+                  <TableHead className="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Used</TableHead>
+                  <TableHead className="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Balance</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1102,11 +1108,11 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
       </Card>
 
       {/* Leave History */}
-      <Card>
+      <Card className="border-border/50">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-base">Leave History</CardTitle>
+              <CardTitle className="text-base font-semibold">Leave History</CardTitle>
               <CardDescription>
                 {historyTab === "actual" ? "Confirmed" : "Planned"} leaves for {year}
               </CardDescription>
@@ -1168,16 +1174,16 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
               );
             }
             return (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Days</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Reason</TableHead>
-                    {isViewingCurrentYear && <TableHead className="text-right">Actions</TableHead>}
+                  <TableRow className="border-border/50 hover:bg-transparent">
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Date</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Days</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Type</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Source</TableHead>
+                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Reason</TableHead>
+                    {isViewingCurrentYear && <TableHead className="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>

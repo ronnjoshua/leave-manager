@@ -217,26 +217,30 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
     }));
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
+    <Card className="border-border/50">
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Calendar</CardTitle>
-          <div className="flex items-center gap-2">
+          <CardTitle className="text-base font-semibold">Calendar</CardTitle>
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
-              className="size-8 p-0"
+              className="size-8 p-0 rounded-full"
               onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
             >
               <ChevronLeft className="size-4" />
             </Button>
-            <span className="text-sm font-semibold min-w-[120px] text-center">
+            <button
+              className="text-sm font-semibold min-w-[130px] text-center hover:text-primary transition-colors px-2 py-1 rounded-lg hover:bg-accent"
+              onClick={() => setCurrentMonth(new Date())}
+              title="Go to today"
+            >
               {format(currentMonth, "MMMM yyyy")}
-            </span>
+            </button>
             <Button
               variant="ghost"
               size="sm"
-              className="size-8 p-0"
+              className="size-8 p-0 rounded-full"
               onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
             >
               <ChevronRight className="size-4" />
@@ -244,7 +248,7 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
           </div>
         </div>
         {onDateClick && (
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-[11px] text-muted-foreground mt-1">
             {selecting
               ? "Click another date to select a range \u00B7 Esc to cancel"
               : "Click a date to log a leave"}
@@ -253,14 +257,14 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
       </CardHeader>
       <CardContent>
         {/* Week day headers */}
-        <div className="grid grid-cols-7 gap-1 mb-1">
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-0.5">
           {weekDays.map((d) => (
             <div
               key={d}
-              className={`text-center text-xs font-medium py-1 ${
+              className={`text-center text-[10px] sm:text-xs font-semibold uppercase tracking-wider py-1.5 ${
                 d === "Sat" || d === "Sun"
-                  ? "text-red-400"
-                  : "text-muted-foreground"
+                  ? "text-red-400/80"
+                  : "text-muted-foreground/60"
               }`}
             >
               {d}
@@ -269,7 +273,7 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
         </div>
 
         {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
           {days.map((day) => {
             const info = getDayInfo(day);
 
@@ -303,9 +307,9 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
             return (
               <div
                 key={info.key}
-                className={`relative flex flex-col items-center justify-center rounded-lg p-1 min-h-[40px] text-sm transition-colors ${bgClass} ${
-                  info.today ? "ring-2 ring-primary ring-offset-1" : ""
-                } ${clickable ? "cursor-pointer hover:bg-primary/10" : ""}`}
+                className={`relative flex flex-col items-center justify-center rounded-lg p-0.5 sm:p-1 min-h-[36px] sm:min-h-[44px] text-sm transition-all duration-150 ${bgClass} ${
+                  info.today ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : ""
+                } ${clickable ? "cursor-pointer hover:bg-primary/10 active:scale-95" : ""}`}
                 title={
                   info.holiday
                     ? `${info.holiday.name} (${info.holiday.localName})`
@@ -340,7 +344,7 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-4 text-xs text-muted-foreground">
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-5 pt-4 border-t border-border/40 text-[11px] text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <span className="size-2.5 rounded-full bg-red-50 ring-1 ring-red-200 dark:bg-red-950 dark:ring-red-800" />
             Weekend
@@ -365,8 +369,8 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
 
         {/* This month's holidays */}
         {monthHolidays.length > 0 && (
-          <div className="mt-4 pt-3 border-t space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">
+          <div className="mt-4 pt-3 border-t border-border/40 space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
               Holidays this month
             </p>
             {monthHolidays.map(({ date, holiday }) => (
