@@ -358,20 +358,16 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
             {monthHolidays.map(({ date, holiday }) => (
               <div
                 key={holiday.date}
-                className="flex items-center justify-between text-xs"
+                className="flex items-center gap-2 text-xs"
+                title={holiday.localName}
               >
-                <span className="flex items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800"
-                  >
-                    {format(date, "MMM d")}
-                  </Badge>
-                  <span className="font-medium">{holiday.name}</span>
-                </span>
-                <span className="text-muted-foreground">
-                  {holiday.localName}
-                </span>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800"
+                >
+                  {format(date, "MMM d")}
+                </Badge>
+                <span className="font-medium">{holiday.name}</span>
               </div>
             ))}
           </div>
