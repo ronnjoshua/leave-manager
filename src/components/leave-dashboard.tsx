@@ -264,8 +264,7 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
       !formStartDate ||
       !formEndDate ||
       !days ||
-      days <= 0 ||
-      !formReason.trim()
+      days <= 0
     )
       return;
     if (days > available) return;
@@ -329,8 +328,7 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
       !editStartDate ||
       !editEndDate ||
       !days ||
-      days <= 0 ||
-      !editReason.trim()
+      days <= 0
     )
       return;
 
@@ -805,10 +803,9 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
                 <Input
                   id="leave-reason"
                   type="text"
-                  placeholder="e.g. Family trip, Doctor visit"
+                  placeholder="e.g. Family trip, Doctor visit (optional)"
                   value={formReason}
                   onChange={(e) => setFormReason(e.target.value)}
-                  required
                 />
               </div>
               <div className="space-y-2">
@@ -1391,10 +1388,9 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
               <Input
                 id="edit-reason"
                 type="text"
-                placeholder="e.g. Family trip, Doctor visit"
+                placeholder="e.g. Family trip, Doctor visit (optional)"
                 value={editReason}
                 onChange={(e) => setEditReason(e.target.value)}
-                required
               />
             </div>
             <DialogFooter>
