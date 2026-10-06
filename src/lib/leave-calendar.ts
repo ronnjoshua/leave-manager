@@ -1,0 +1,21 @@
+import type { LeaveStatus } from "@/lib/types";
+
+export function getCalendarLeaveGroups<T extends { status: LeaveStatus }>(
+  leaves: T[],
+  status?: LeaveStatus
+) {
+  const actualLeaves =
+    status === "planned"
+      ? []
+      : leaves.filter((leave) => leave.status === "actual");
+  const plannedLeaves =
+    status === "actual"
+      ? []
+      : leaves.filter((leave) => leave.status === "planned");
+
+  return {
+    actualLeaves,
+    plannedLeaves,
+    visibleLeaves: [...actualLeaves, ...plannedLeaves],
+  };
+}

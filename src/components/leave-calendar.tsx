@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { getCalendarLeaveGroups } from "@/lib/leave-calendar";
 import type { LeaveRecord, LeaveStatus } from "@/lib/types";
 
 interface Holiday {
@@ -192,9 +193,11 @@ export function LeaveCalendar({ records, year, onDateClick, status, title = "Cal
     const sunday = isSunday(day);
     const today = isToday(day);
     const inMonth = isSameMonth(day, currentMonth);
-    const actualLeaves = records.filter((r) => r.status === "actual" && isInLeaveRange(day, r));
-    const plannedLeaves = records.filter((r) => r.status === "planned" && isInLeaveRange(day, r));
-    const visibleLeaves = status === "actual" ? actualLeaves : status === "planned" ? plannedLeaves : [...actualLeaves, ...plannedLeaves];
+    const { actualLeaves, plannedLeaves, visibleLeaves } =
+      getCalendarLeaveGroups(
+        records.filter((record) => isInLeaveRange(day, record)),
+        status
+      );
     const onLeave = actualLeaves.length > 0 && !weekend;
     const onPlannedLeave = plannedLeaves.length > 0 && !weekend;
     const longWeekend = isLongWeekend(day, holidays);
@@ -374,14 +377,18 @@ export function LeaveCalendar({ records, year, onDateClick, status, title = "Cal
             <span className="size-2.5 rounded-full bg-red-50 ring-1 ring-red-200 dark:bg-red-950 dark:ring-red-800" />
             Weekend
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-teal-500" />
-            On Leave
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-teal-300 dark:bg-teal-600" />
-            Planned
-          </span>
+          {status !== "planned" && (
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-teal-500" />
+              On Leave
+            </span>
+          )}
+          {status !== "actual" && (
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-teal-300 dark:bg-teal-600" />
+              Planned
+            </span>
+          )}
           <span className="flex items-center gap-1.5">
             <span className="size-2.5 rounded-full bg-amber-500" />
             Holiday
