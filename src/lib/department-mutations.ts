@@ -1,5 +1,7 @@
 import { sql, type SQL } from "drizzle-orm";
 import { departments } from "@/lib/db/schema";
+import { hasDepartmentPromotionConflict } from "@/lib/admin-departments";
+import type { DepartmentNode } from "@/lib/departments";
 
 const DEPARTMENT_HIERARCHY_LOCK_KEY = 1_845_027_331;
 
@@ -34,4 +36,49 @@ export function departmentParentConstraint(
       where descendants.id = ${parentId}
     )
   `;
+}
+
+type DeleteDepartmentDependencies = {
+  listDepartments: () => Promise<DepartmentNode[]>;
+  deleteAtomically: () => Promise<boolean>;
+};
+
+type DeleteDepartmentResult = {
+  status: 200 | 404 | 409;
+  body: { ok: true } | { error: string };
+};
+
+const PROMOTION_CONFLICT_ERROR =
+  "Cannot delete department because promoting its children would create duplicate sibling names";
+
+function databaseErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  if ("code" in error && typeof error.code === "string") return error.code;
+  if ("cause" in error) return databaseErrorCode(error.cause);
+  return undefined;
+}
+
+export async function deleteDepartmentMutation(
+  departmentId: string,
+  dependencies: DeleteDepartmentDependencies
+): Promise<DeleteDepartmentResult> {
+  const departmentRows = await dependencies.listDepartments();
+  if (!departmentRows.some((department) => department.id === departmentId)) {
+    return { status: 404, body: { error: "Department not found" } };
+  }
+  if (hasDepartmentPromotionConflict(departmentRows, departmentId)) {
+    return { status: 409, body: { error: PROMOTION_CONFLICT_ERROR } };
+  }
+
+  try {
+    const deleted = await dependencies.deleteAtomically();
+    return deleted
+      ? { status: 200, body: { ok: true } }
+      : { status: 404, body: { error: "Department not found" } };
+  } catch (error) {
+    if (databaseErrorCode(error) === "23505") {
+      return { status: 409, body: { error: PROMOTION_CONFLICT_ERROR } };
+    }
+    throw error;
+  }
 }

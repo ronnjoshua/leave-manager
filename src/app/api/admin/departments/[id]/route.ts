@@ -4,7 +4,6 @@ import { auth, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { allowedUsers, departments } from "@/lib/db/schema";
 import {
-  hasDepartmentPromotionConflict,
   hasSiblingDepartmentName,
   isValidDepartmentParent,
   normalizeDepartmentName,
@@ -12,6 +11,7 @@ import {
 import {
   departmentHierarchyLockQuery,
   departmentParentConstraint,
+  deleteDepartmentMutation,
 } from "@/lib/department-mutations";
 
 export const dynamic = "force-dynamic";
@@ -166,68 +166,41 @@ export async function DELETE(_request: NextRequest, { params }: Context) {
   }
 
   const { id } = await params;
-  const departmentRows = await db
-    .select({
-      id: departments.id,
-      name: departments.name,
-      parentId: departments.parentId,
-    })
-    .from(departments);
-  const target = departmentRows.find((department) => department.id === id);
-  if (!target) {
-    return NextResponse.json({ error: "Department not found" }, { status: 404 });
-  }
-  if (hasDepartmentPromotionConflict(departmentRows, id)) {
-    return NextResponse.json(
-      {
-        error:
-          "Cannot delete department because promoting its children would create duplicate sibling names",
-      },
-      { status: 409 }
-    );
-  }
-
-  try {
-    const [, , , deletedRows] = await db.batch([
-      db.execute(departmentHierarchyLockQuery()),
+  const result = await deleteDepartmentMutation(id, {
+    listDepartments: () =>
       db
-        .update(allowedUsers)
-        .set({ departmentId: null })
-        .where(eq(allowedUsers.departmentId, id)),
-      db
-        .update(departments)
-        .set({
-          parentId: sql`(
-            select current_target.parent_id
-            from ${departments} current_target
-            where current_target.id = ${id}
-          )`,
-          updatedAt: new Date(),
+        .select({
+          id: departments.id,
+          name: departments.name,
+          parentId: departments.parentId,
         })
-        .where(eq(departments.parentId, id)),
-      db
-        .delete(departments)
-        .where(eq(departments.id, id))
-        .returning({ id: departments.id }),
-    ]);
-    if (!deletedRows[0]) {
-      return NextResponse.json(
-        { error: "Department not found" },
-        { status: 404 }
-      );
-    }
-  } catch (error) {
-    if (databaseErrorCode(error) === "23505") {
-      return NextResponse.json(
-        {
-          error:
-            "Cannot delete department because promoting its children would create duplicate sibling names",
-        },
-        { status: 409 }
-      );
-    }
-    throw error;
-  }
+        .from(departments),
+    deleteAtomically: async () => {
+      const [, , , deletedRows] = await db.batch([
+        db.execute(departmentHierarchyLockQuery()),
+        db
+          .update(allowedUsers)
+          .set({ departmentId: null })
+          .where(eq(allowedUsers.departmentId, id)),
+        db
+          .update(departments)
+          .set({
+            parentId: sql`(
+              select current_target.parent_id
+              from ${departments} current_target
+              where current_target.id = ${id}
+            )`,
+            updatedAt: new Date(),
+          })
+          .where(eq(departments.parentId, id)),
+        db
+          .delete(departments)
+          .where(eq(departments.id, id))
+          .returning({ id: departments.id }),
+      ]);
+      return Boolean(deletedRows[0]);
+    },
+  });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json(result.body, { status: result.status });
 }

@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, isSuperAdmin } from "@/lib/auth";
 import { canManageAllowedUsers } from "@/lib/admin-authorization";
+import { createAllowedUserRouteHandlers } from "@/lib/admin-user-route-handlers";
 import { db } from "@/lib/db";
 import { allowedUsers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await auth();
-  if (!canManageAllowedUsers(session?.user?.email)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+type Context = { params: Promise<{ id: string }> };
 
+async function deleteAllowedUser(
+  _req: NextRequest,
+  { params }: Context
+) {
   const { id } = await params;
 
   // The fixed superadmin identity must remain allowed and immutable.
@@ -39,15 +37,10 @@ export async function DELETE(
   return NextResponse.json({ ok: true });
 }
 
-export async function PATCH(
+async function updateAllowedUserRole(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: Context
 ) {
-  const session = await auth();
-  if (!canManageAllowedUsers(session?.user?.email)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
   let body: unknown;
   try {
     body = await req.json();
@@ -87,3 +80,17 @@ export async function PATCH(
     .returning();
   return NextResponse.json(updated);
 }
+
+const handlers = createAllowedUserRouteHandlers(
+  {
+    getSessionEmail: async () => (await auth())?.user?.email,
+    canManageAllowedUsers,
+  },
+  {
+    delete: deleteAllowedUser,
+    patch: updateAllowedUserRole,
+  }
+);
+
+export const DELETE = handlers.DELETE;
+export const PATCH = handlers.PATCH;

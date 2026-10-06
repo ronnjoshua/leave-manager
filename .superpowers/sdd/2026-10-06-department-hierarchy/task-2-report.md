@@ -32,3 +32,11 @@
 - Added focused coverage for deletion promotion conflicts, the normalized persistence index, hierarchy serialization/current-state cycle validation SQL, and allowed-user authorization.
 
 Review verification: the focused review tests passed 11/11, the full suite passed 19/19, `npx tsc --noEmit` passed, and targeted ESLint passed.
+
+## Review fixes — round 2
+
+- Extracted the department DELETE decision/response boundary into `deleteDepartmentMutation`, which the route calls with its real Drizzle transaction. A controlled in-memory test now verifies a promotion collision returns 409, never enters the transaction, and preserves both assignments and child parents.
+- Extracted the shared allowed-user route authorization wrapper and handler factories used by the real GET/POST/DELETE/PATCH exports. Route-level tests inject controlled operations and prove all four methods return 403 without executing for a regular admin, while all four execute for the fixed superadmin.
+- These seams avoid fabricated Auth.js cookies or mutable test-only production state while exercising the same authorization and mutation control flow used by the route modules.
+
+Review round 2 verification: focused route/application tests passed 3/3, the full suite passed 22/22, `npx tsc --noEmit` passed, and targeted ESLint passed.

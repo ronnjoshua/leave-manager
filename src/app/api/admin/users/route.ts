@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { canManageAllowedUsers } from "@/lib/admin-authorization";
+import { createAllowedUsersRouteHandlers } from "@/lib/admin-user-route-handlers";
 import { db } from "@/lib/db";
 import { allowedUsers } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const session = await auth();
-  if (!canManageAllowedUsers(session?.user?.email)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
+async function listAllowedUsers() {
   const users = await db
     .select()
     .from(allowedUsers)
@@ -20,12 +16,7 @@ export async function GET() {
   return NextResponse.json(users);
 }
 
-export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!canManageAllowedUsers(session?.user?.email)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
+async function createAllowedUser(req: NextRequest) {
   let body: unknown;
   try {
     body = await req.json();
@@ -54,3 +45,17 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+const handlers = createAllowedUsersRouteHandlers(
+  {
+    getSessionEmail: async () => (await auth())?.user?.email,
+    canManageAllowedUsers,
+  },
+  {
+    get: listAllowedUsers,
+    post: createAllowedUser,
+  }
+);
+
+export const GET = handlers.GET;
+export const POST = handlers.POST;
