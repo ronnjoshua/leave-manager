@@ -49,12 +49,24 @@ test("locks member replacement before clearing and assigning users", () => {
       "lock",
       "check-department",
       "clear",
-      "assign"
+      "assign",
+      "verify-department"
     ),
-    ["lock", "check-department", "clear", "assign"]
+    [
+      "lock",
+      "check-department",
+      "clear",
+      "assign",
+      "verify-department",
+    ]
   );
   assert.deepEqual(
-    departmentMembershipMutationBatch("lock", "check-department", "clear"),
-    ["lock", "check-department", "clear"]
+    departmentMembershipMutationBatch(
+      "lock",
+      "check-department",
+      "clear",
+      "verify-department"
+    ),
+    ["lock", "check-department", "clear", "verify-department"]
   );
 });

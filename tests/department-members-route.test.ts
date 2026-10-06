@@ -67,3 +67,45 @@ test("member replacement maps a deleted-target foreign-key race to 404", async (
   assert.equal(response.status, 404);
   assert.deepEqual(await response.json(), { error: "Department not found" });
 });
+
+test("non-empty member replacement returns 404 when the target disappears before assignment", async () => {
+  const { PUT } = await import(
+    "../src/app/api/admin/departments/[id]/members/route"
+  );
+  const events: string[] = [];
+
+  const response = await PUT(
+    new NextRequest("http://localhost/api/admin/departments/sales/members", {
+      method: "PUT",
+      body: JSON.stringify({ userIds: ["ana"] }),
+      headers: { "content-type": "application/json" },
+    }),
+    { params: Promise.resolve({ id: "sales" }) },
+    {
+      authorize: async () => true,
+      replaceMembers: (departmentId: string, userIds: string[]) =>
+        replaceDepartmentMembersMutation(departmentId, userIds, {
+          listUsers: async () => [{ id: "ana", departmentId: null }],
+          replaceAtomically: async (assignedUserIds) => {
+            assert.deepEqual(assignedUserIds, ["ana"]);
+            events.push(
+              "initial-check-found-target",
+              "target-deleted",
+              "guarded-assignment-updated-zero",
+              "post-write-check-missing"
+            );
+            return false;
+          },
+        }),
+    }
+  );
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: "Department not found" });
+  assert.deepEqual(events, [
+    "initial-check-found-target",
+    "target-deleted",
+    "guarded-assignment-updated-zero",
+    "post-write-check-missing",
+  ]);
+});

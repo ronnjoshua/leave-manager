@@ -31,30 +31,32 @@ async function replaceMembers(departmentId: string, userIds: string[]) {
         })
         .from(allowedUsers),
     replaceAtomically: async (assignedUserIds) => {
-      const checkDepartment = db
-        .select({ id: departments.id })
-        .from(departments)
-        .where(eq(departments.id, departmentId));
+      const checkDepartment = () =>
+        db
+          .select({ id: departments.id })
+          .from(departments)
+          .where(eq(departments.id, departmentId));
       const clearMembers = db
         .update(allowedUsers)
         .set({ departmentId: null })
         .where(eq(allowedUsers.departmentId, departmentId));
 
       if (assignedUserIds.length === 0) {
-        const [, departmentRows] = await db.batch(
+        const [, , , departmentRows] = await db.batch(
           departmentMembershipMutationBatch(
             db.execute(departmentHierarchyLockQuery()),
-            checkDepartment,
-            clearMembers
+            checkDepartment(),
+            clearMembers,
+            checkDepartment()
           )
         );
         return Boolean(departmentRows[0]);
       }
 
-      const [, departmentRows] = await db.batch(
+      const [, , , , departmentRows] = await db.batch(
         departmentMembershipMutationBatch(
           db.execute(departmentHierarchyLockQuery()),
-          checkDepartment,
+          checkDepartment(),
           clearMembers,
           db
             .update(allowedUsers)
@@ -68,7 +70,8 @@ async function replaceMembers(departmentId: string, userIds: string[]) {
                   where current_target.id = ${departmentId}
                 )`
               )
-            )
+            ),
+          checkDepartment()
         )
       );
       return Boolean(departmentRows[0]);

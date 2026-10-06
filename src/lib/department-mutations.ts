@@ -32,38 +32,62 @@ export function departmentMembershipMutationBatch<
   TLock,
   TCheckDepartment,
   TClearMembers,
+  TVerifyDepartment,
 >(
   lock: TLock,
   checkDepartment: TCheckDepartment,
-  clearMembers: TClearMembers
-): [TLock, TCheckDepartment, TClearMembers];
+  clearMembers: TClearMembers,
+  verifyDepartment: TVerifyDepartment
+): [TLock, TCheckDepartment, TClearMembers, TVerifyDepartment];
 export function departmentMembershipMutationBatch<
   TLock,
   TCheckDepartment,
   TClearMembers,
   TAssignMembers,
+  TVerifyDepartment,
 >(
   lock: TLock,
   checkDepartment: TCheckDepartment,
   clearMembers: TClearMembers,
-  assignMembers: TAssignMembers
-): [TLock, TCheckDepartment, TClearMembers, TAssignMembers];
-export function departmentMembershipMutationBatch<
+  assignMembers: TAssignMembers,
+  verifyDepartment: TVerifyDepartment
+): [
   TLock,
   TCheckDepartment,
   TClearMembers,
   TAssignMembers,
+  TVerifyDepartment,
+];
+export function departmentMembershipMutationBatch<
+  TLock,
+  TCheckDepartment,
+  TClearMembers,
+  TAssignOrVerify,
+  TVerifyDepartment,
 >(
   lock: TLock,
   checkDepartment: TCheckDepartment,
   clearMembers: TClearMembers,
-  assignMembers?: TAssignMembers
+  assignOrVerify: TAssignOrVerify,
+  verifyDepartment?: TVerifyDepartment
 ):
-  | [TLock, TCheckDepartment, TClearMembers]
-  | [TLock, TCheckDepartment, TClearMembers, TAssignMembers] {
-  return assignMembers === undefined
-    ? [lock, checkDepartment, clearMembers]
-    : [lock, checkDepartment, clearMembers, assignMembers];
+  | [TLock, TCheckDepartment, TClearMembers, TAssignOrVerify]
+  | [
+      TLock,
+      TCheckDepartment,
+      TClearMembers,
+      TAssignOrVerify,
+      TVerifyDepartment,
+    ] {
+  return verifyDepartment === undefined
+    ? [lock, checkDepartment, clearMembers, assignOrVerify]
+    : [
+        lock,
+        checkDepartment,
+        clearMembers,
+        assignOrVerify,
+        verifyDepartment,
+      ];
 }
 
 export function departmentParentConstraint(

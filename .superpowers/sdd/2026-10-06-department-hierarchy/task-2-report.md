@@ -63,3 +63,11 @@ Final review verification: focused mutation/exported-route tests passed 6/6, the
 - Added a minimal dependency seam to the actual exported PUT handler and controlled route regressions for the delete/empty-PUT interleaving and foreign-key race. The transaction-order test now requires lock, target recheck, clear, then optional assignment.
 
 Whole-branch fix verification: focused mutation/exported-route tests passed 6/6, the full suite passed 54/54, `npx tsc --noEmit` passed, targeted ESLint passed, and `git diff --check` passed.
+
+## Final membership post-write fix
+
+- Membership replacement batches now finish with a second target-department query after the clear and optional assignment. The API derives success only from this post-write result, so a non-empty replacement whose `EXISTS`-guarded assignment updates zero rows because the target vanished returns 404 rather than a false 200.
+- The existing transaction-scoped advisory lock, atomic batch behavior, and `23503` foreign-key mapping remain intact.
+- Added controlled exported-PUT coverage for a target present at the initial check but missing before the guarded assignment, and strengthened transaction-order coverage to require the final verification statement.
+
+Final membership verification: focused mutation/exported-route tests passed 7/7, the full suite passed 55/55, `npx tsc --noEmit` passed, targeted ESLint passed, and `git diff --check` passed.
