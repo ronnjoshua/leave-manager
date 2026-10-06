@@ -47,3 +47,11 @@ Review round 2 verification: focused route/application tests passed 3/3, the ful
 - Tests now import and invoke the actual route exports with controlled dependencies, asserting real `NextResponse` instances, status codes, JSON bodies, operation call counts, and unchanged department/member state on a 409 promotion conflict.
 
 Review round 3 verification: focused exported-route tests passed 3/3, the full suite passed 22/22, `npx tsc --noEmit` passed (including generated Next.js route validators), and targeted ESLint passed.
+
+## Review fixes — final
+
+- Department deletion now releases the target department's sibling-name key inside the advisory-locked batch before promoting its children. A child may therefore inherit the target's parent when it has the same normalized name as the target, while genuine destination-sibling conflicts still fail with PostgreSQL `23505`, roll back the full batch, and return the stable 409 response.
+- Department membership replacement now acquires the same transaction-scoped advisory lock before clearing or assigning members. Concurrent replacements are serialized instead of interleaving into a merged selection.
+- Added regression coverage through the actual exported DELETE route for the same-name parent/child case, plus explicit transaction-order tests for deletion and both empty and non-empty membership replacements.
+
+Final review verification: focused mutation/exported-route tests passed 6/6, the full suite passed 49/49, `npx tsc --noEmit` passed, and targeted ESLint passed.

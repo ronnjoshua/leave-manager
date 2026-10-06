@@ -4,6 +4,10 @@ import { auth, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { allowedUsers, departments } from "@/lib/db/schema";
 import { replaceDepartmentMembers } from "@/lib/admin-departments";
+import {
+  departmentHierarchyLockQuery,
+  departmentMembershipMutationBatch,
+} from "@/lib/department-mutations";
 
 export const dynamic = "force-dynamic";
 
@@ -73,15 +77,23 @@ export async function PUT(request: NextRequest, { params }: Context) {
     .where(eq(allowedUsers.departmentId, id));
 
   if (assignedUserIds.length === 0) {
-    await db.batch([clearMembers]);
+    await db.batch(
+      departmentMembershipMutationBatch(
+        db.execute(departmentHierarchyLockQuery()),
+        clearMembers
+      )
+    );
   } else {
-    await db.batch([
-      clearMembers,
-      db
-        .update(allowedUsers)
-        .set({ departmentId: id })
-        .where(inArray(allowedUsers.id, assignedUserIds)),
-    ]);
+    await db.batch(
+      departmentMembershipMutationBatch(
+        db.execute(departmentHierarchyLockQuery()),
+        clearMembers,
+        db
+          .update(allowedUsers)
+          .set({ departmentId: id })
+          .where(inArray(allowedUsers.id, assignedUserIds))
+      )
+    );
   }
 
   return NextResponse.json({ ok: true, userIds: assignedUserIds });

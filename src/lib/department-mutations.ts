@@ -9,6 +9,49 @@ export function departmentHierarchyLockQuery(): SQL {
   return sql`select pg_advisory_xact_lock(${DEPARTMENT_HIERARCHY_LOCK_KEY})`;
 }
 
+export function departmentDeletionMutationBatch<
+  TLock,
+  TReleaseName,
+  TClearMembers,
+  TPromoteChildren,
+  TDeleteTarget,
+>(
+  lock: TLock,
+  releaseName: TReleaseName,
+  clearMembers: TClearMembers,
+  promoteChildren: TPromoteChildren,
+  deleteTarget: TDeleteTarget
+): [TLock, TReleaseName, TClearMembers, TPromoteChildren, TDeleteTarget] {
+  return [lock, releaseName, clearMembers, promoteChildren, deleteTarget];
+}
+
+export function departmentMembershipMutationBatch<TLock, TClearMembers>(
+  lock: TLock,
+  clearMembers: TClearMembers
+): [TLock, TClearMembers];
+export function departmentMembershipMutationBatch<
+  TLock,
+  TClearMembers,
+  TAssignMembers,
+>(
+  lock: TLock,
+  clearMembers: TClearMembers,
+  assignMembers: TAssignMembers
+): [TLock, TClearMembers, TAssignMembers];
+export function departmentMembershipMutationBatch<
+  TLock,
+  TClearMembers,
+  TAssignMembers,
+>(
+  lock: TLock,
+  clearMembers: TClearMembers,
+  assignMembers?: TAssignMembers
+): [TLock, TClearMembers] | [TLock, TClearMembers, TAssignMembers] {
+  return assignMembers === undefined
+    ? [lock, clearMembers]
+    : [lock, clearMembers, assignMembers];
+}
+
 export function departmentParentConstraint(
   departmentId: string,
   parentId: string | null

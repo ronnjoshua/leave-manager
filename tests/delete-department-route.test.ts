@@ -53,3 +53,60 @@ test("department deletion returns 409 without mutating assignments or children o
   assert.deepEqual(assignments, originalAssignments);
   assert.deepEqual(departments, originalDepartments);
 });
+
+test("department deletion succeeds when only the target and its child share a normalized name", async () => {
+  const { DELETE } = await import(
+    "../src/app/api/admin/departments/[id]/route"
+  );
+  const departments: DepartmentNode[] = [
+    { id: "division", name: "Sales", parentId: null },
+    { id: "team", name: " sales ", parentId: "division" },
+  ];
+  const assignments: Array<{ userId: string; departmentId: string | null }> = [
+    { userId: "ana", departmentId: "division" },
+    { userId: "ben", departmentId: "team" },
+  ];
+
+  const response = await DELETE(
+    new NextRequest("http://localhost/api/admin/departments/division", {
+      method: "DELETE",
+    }),
+    { params: Promise.resolve({ id: "division" }) },
+    {
+      authorize: async () => true,
+      deleteDepartment: (id: string) =>
+        deleteDepartmentMutation(id, {
+          listDepartments: async () => departments,
+          deleteAtomically: async () => {
+            const target = departments.find((department) => department.id === id);
+            const childIds = departments
+              .filter((department) => department.parentId === id)
+              .map((department) => department.id);
+            const targetIndex = departments.findIndex(
+              (department) => department.id === id
+            );
+            departments.splice(targetIndex, 1);
+            for (const department of departments) {
+              if (childIds.includes(department.id)) {
+                department.parentId = target?.parentId ?? null;
+              }
+            }
+            for (const assignment of assignments) {
+              if (assignment.departmentId === id) assignment.departmentId = null;
+            }
+            return true;
+          },
+        }),
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { ok: true });
+  assert.deepEqual(departments, [
+    { id: "team", name: " sales ", parentId: null },
+  ]);
+  assert.deepEqual(assignments, [
+    { userId: "ana", departmentId: null },
+    { userId: "ben", departmentId: "team" },
+  ]);
+});

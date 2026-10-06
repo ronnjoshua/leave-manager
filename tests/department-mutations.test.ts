@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { PgDialect } from "drizzle-orm/pg-core";
 import {
+  departmentDeletionMutationBatch,
   departmentHierarchyLockQuery,
+  departmentMembershipMutationBatch,
   departmentParentConstraint,
 } from "../src/lib/department-mutations";
 
@@ -20,4 +22,34 @@ test("rechecks descendant cycles in the database after acquiring the lock", () =
   assert.match(query.sql.toLowerCase(), /with recursive/);
   assert.match(query.sql.toLowerCase(), /not exists/);
   assert.deepEqual(query.params, ["platform", "engineering", "platform"]);
+});
+
+test("releases a deleted department name before promoting its children", () => {
+  assert.deepEqual(
+    departmentDeletionMutationBatch(
+      "lock",
+      "release-name",
+      "clear-members",
+      "promote-children",
+      "delete-target"
+    ),
+    [
+      "lock",
+      "release-name",
+      "clear-members",
+      "promote-children",
+      "delete-target",
+    ]
+  );
+});
+
+test("locks member replacement before clearing and assigning users", () => {
+  assert.deepEqual(
+    departmentMembershipMutationBatch("lock", "clear", "assign"),
+    ["lock", "clear", "assign"]
+  );
+  assert.deepEqual(
+    departmentMembershipMutationBatch("lock", "clear"),
+    ["lock", "clear"]
+  );
 });

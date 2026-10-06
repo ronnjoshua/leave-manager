@@ -9,6 +9,7 @@ import {
   normalizeDepartmentName,
 } from "@/lib/admin-departments";
 import {
+  departmentDeletionMutationBatch,
   departmentHierarchyLockQuery,
   departmentParentConstraint,
   deleteDepartmentMutation,
@@ -177,28 +178,37 @@ async function deleteDepartment(id: string) {
         })
         .from(departments),
     deleteAtomically: async () => {
-      const [, , , deletedRows] = await db.batch([
-        db.execute(departmentHierarchyLockQuery()),
-        db
-          .update(allowedUsers)
-          .set({ departmentId: null })
-          .where(eq(allowedUsers.departmentId, id)),
-        db
-          .update(departments)
-          .set({
-            parentId: sql`(
-              select current_target.parent_id
-              from ${departments} current_target
-              where current_target.id = ${id}
-            )`,
-            updatedAt: new Date(),
-          })
-          .where(eq(departments.parentId, id)),
-        db
-          .delete(departments)
-          .where(eq(departments.id, id))
-          .returning({ id: departments.id }),
-      ]);
+      const [, , , , deletedRows] = await db.batch(
+        departmentDeletionMutationBatch(
+          db.execute(departmentHierarchyLockQuery()),
+          db
+            .update(departments)
+            .set({
+              name: `__deleting_department_${id}_${crypto.randomUUID()}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(departments.id, id)),
+          db
+            .update(allowedUsers)
+            .set({ departmentId: null })
+            .where(eq(allowedUsers.departmentId, id)),
+          db
+            .update(departments)
+            .set({
+              parentId: sql`(
+                select current_target.parent_id
+                from ${departments} current_target
+                where current_target.id = ${id}
+              )`,
+              updatedAt: new Date(),
+            })
+            .where(eq(departments.parentId, id)),
+          db
+            .delete(departments)
+            .where(eq(departments.id, id))
+            .returning({ id: departments.id })
+        )
+      );
       return Boolean(deletedRows[0]);
     },
   });
