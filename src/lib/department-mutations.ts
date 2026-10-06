@@ -1,6 +1,9 @@
 import { sql, type SQL } from "drizzle-orm";
 import { departments } from "@/lib/db/schema";
-import { hasDepartmentPromotionConflict } from "@/lib/admin-departments";
+import {
+  hasDepartmentPromotionConflict,
+  replaceDepartmentMembers,
+} from "@/lib/admin-departments";
 import type { DepartmentNode } from "@/lib/departments";
 
 const DEPARTMENT_HIERARCHY_LOCK_KEY = 1_845_027_331;
@@ -25,31 +28,42 @@ export function departmentDeletionMutationBatch<
   return [lock, releaseName, clearMembers, promoteChildren, deleteTarget];
 }
 
-export function departmentMembershipMutationBatch<TLock, TClearMembers>(
-  lock: TLock,
-  clearMembers: TClearMembers
-): [TLock, TClearMembers];
 export function departmentMembershipMutationBatch<
   TLock,
+  TCheckDepartment,
+  TClearMembers,
+>(
+  lock: TLock,
+  checkDepartment: TCheckDepartment,
+  clearMembers: TClearMembers
+): [TLock, TCheckDepartment, TClearMembers];
+export function departmentMembershipMutationBatch<
+  TLock,
+  TCheckDepartment,
   TClearMembers,
   TAssignMembers,
 >(
   lock: TLock,
+  checkDepartment: TCheckDepartment,
   clearMembers: TClearMembers,
   assignMembers: TAssignMembers
-): [TLock, TClearMembers, TAssignMembers];
+): [TLock, TCheckDepartment, TClearMembers, TAssignMembers];
 export function departmentMembershipMutationBatch<
   TLock,
+  TCheckDepartment,
   TClearMembers,
   TAssignMembers,
 >(
   lock: TLock,
+  checkDepartment: TCheckDepartment,
   clearMembers: TClearMembers,
   assignMembers?: TAssignMembers
-): [TLock, TClearMembers] | [TLock, TClearMembers, TAssignMembers] {
+):
+  | [TLock, TCheckDepartment, TClearMembers]
+  | [TLock, TCheckDepartment, TClearMembers, TAssignMembers] {
   return assignMembers === undefined
-    ? [lock, clearMembers]
-    : [lock, clearMembers, assignMembers];
+    ? [lock, checkDepartment, clearMembers]
+    : [lock, checkDepartment, clearMembers, assignMembers];
 }
 
 export function departmentParentConstraint(
@@ -99,6 +113,57 @@ function databaseErrorCode(error: unknown): string | undefined {
   if ("code" in error && typeof error.code === "string") return error.code;
   if ("cause" in error) return databaseErrorCode(error.cause);
   return undefined;
+}
+
+type DepartmentMember = {
+  id: string;
+  departmentId: string | null;
+};
+
+type ReplaceDepartmentMembersDependencies = {
+  listUsers: () => Promise<DepartmentMember[]>;
+  replaceAtomically: (assignedUserIds: string[]) => Promise<boolean>;
+};
+
+type ReplaceDepartmentMembersResult = {
+  status: 200 | 404;
+  body:
+    | { ok: true; userIds: string[] }
+    | { error: "Department not found" | "One or more users were not found" };
+};
+
+export async function replaceDepartmentMembersMutation(
+  departmentId: string,
+  userIds: string[],
+  dependencies: ReplaceDepartmentMembersDependencies
+): Promise<ReplaceDepartmentMembersResult> {
+  const userRows = await dependencies.listUsers();
+  const knownUserIds = new Set(userRows.map((user) => user.id));
+  if (userIds.some((userId) => !knownUserIds.has(userId))) {
+    return {
+      status: 404,
+      body: { error: "One or more users were not found" },
+    };
+  }
+
+  const assignments = replaceDepartmentMembers(userRows, departmentId, userIds);
+  const assignedUserIds = assignments
+    .filter((user) => user.departmentId === departmentId)
+    .map((user) => user.id);
+
+  try {
+    const departmentExists = await dependencies.replaceAtomically(
+      assignedUserIds
+    );
+    return departmentExists
+      ? { status: 200, body: { ok: true, userIds: assignedUserIds } }
+      : { status: 404, body: { error: "Department not found" } };
+  } catch (error) {
+    if (databaseErrorCode(error) === "23503") {
+      return { status: 404, body: { error: "Department not found" } };
+    }
+    throw error;
+  }
 }
 
 export async function deleteDepartmentMutation(

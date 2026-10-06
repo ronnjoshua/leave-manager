@@ -45,11 +45,16 @@ test("releases a deleted department name before promoting its children", () => {
 
 test("locks member replacement before clearing and assigning users", () => {
   assert.deepEqual(
-    departmentMembershipMutationBatch("lock", "clear", "assign"),
-    ["lock", "clear", "assign"]
+    departmentMembershipMutationBatch(
+      "lock",
+      "check-department",
+      "clear",
+      "assign"
+    ),
+    ["lock", "check-department", "clear", "assign"]
   );
   assert.deepEqual(
-    departmentMembershipMutationBatch("lock", "clear"),
-    ["lock", "clear"]
+    departmentMembershipMutationBatch("lock", "check-department", "clear"),
+    ["lock", "check-department", "clear"]
   );
 });

@@ -1,21 +1,97 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { auth, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { allowedUsers, departments } from "@/lib/db/schema";
-import { replaceDepartmentMembers } from "@/lib/admin-departments";
 import {
   departmentHierarchyLockQuery,
   departmentMembershipMutationBatch,
+  replaceDepartmentMembersMutation,
 } from "@/lib/department-mutations";
 
 export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ id: string }> };
 
-export async function PUT(request: NextRequest, { params }: Context) {
-  const session = await auth();
-  if (!session?.user?.email || !(await isAdmin(session.user.email))) {
+type PutDepartmentMembersRouteDependencies = {
+  authorize: () => Promise<boolean>;
+  replaceMembers: (
+    departmentId: string,
+    userIds: string[]
+  ) => Promise<Awaited<ReturnType<typeof replaceDepartmentMembersMutation>>>;
+};
+
+async function replaceMembers(departmentId: string, userIds: string[]) {
+  return replaceDepartmentMembersMutation(departmentId, userIds, {
+    listUsers: () =>
+      db
+        .select({
+          id: allowedUsers.id,
+          departmentId: allowedUsers.departmentId,
+        })
+        .from(allowedUsers),
+    replaceAtomically: async (assignedUserIds) => {
+      const checkDepartment = db
+        .select({ id: departments.id })
+        .from(departments)
+        .where(eq(departments.id, departmentId));
+      const clearMembers = db
+        .update(allowedUsers)
+        .set({ departmentId: null })
+        .where(eq(allowedUsers.departmentId, departmentId));
+
+      if (assignedUserIds.length === 0) {
+        const [, departmentRows] = await db.batch(
+          departmentMembershipMutationBatch(
+            db.execute(departmentHierarchyLockQuery()),
+            checkDepartment,
+            clearMembers
+          )
+        );
+        return Boolean(departmentRows[0]);
+      }
+
+      const [, departmentRows] = await db.batch(
+        departmentMembershipMutationBatch(
+          db.execute(departmentHierarchyLockQuery()),
+          checkDepartment,
+          clearMembers,
+          db
+            .update(allowedUsers)
+            .set({ departmentId })
+            .where(
+              and(
+                inArray(allowedUsers.id, assignedUserIds),
+                sql`exists (
+                  select 1
+                  from ${departments} current_target
+                  where current_target.id = ${departmentId}
+                )`
+              )
+            )
+        )
+      );
+      return Boolean(departmentRows[0]);
+    },
+  });
+}
+
+const productionDependencies: PutDepartmentMembersRouteDependencies = {
+  authorize: async () => {
+    const session = await auth();
+    return Boolean(
+      session?.user?.email && (await isAdmin(session.user.email))
+    );
+  },
+  replaceMembers,
+};
+
+export async function PUT(
+  request: NextRequest,
+  { params }: Context,
+  dependencies: PutDepartmentMembersRouteDependencies = productionDependencies
+) {
+  if (!(await dependencies.authorize())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -44,57 +120,6 @@ export async function PUT(request: NextRequest, { params }: Context) {
     new Set(rawUserIds.map((userId) => (userId as string).trim()))
   );
 
-  const [department] = await db
-    .select({ id: departments.id })
-    .from(departments)
-    .where(eq(departments.id, id));
-  if (!department) {
-    return NextResponse.json({ error: "Department not found" }, { status: 404 });
-  }
-
-  const userRows = await db
-    .select({
-      id: allowedUsers.id,
-      departmentId: allowedUsers.departmentId,
-    })
-    .from(allowedUsers);
-  const knownUserIds = new Set(userRows.map((user) => user.id));
-  if (userIds.some((userId) => !knownUserIds.has(userId))) {
-    return NextResponse.json(
-      { error: "One or more users were not found" },
-      { status: 404 }
-    );
-  }
-
-  const assignments = replaceDepartmentMembers(userRows, id, userIds);
-  const assignedUserIds = assignments
-    .filter((user) => user.departmentId === id)
-    .map((user) => user.id);
-
-  const clearMembers = db
-    .update(allowedUsers)
-    .set({ departmentId: null })
-    .where(eq(allowedUsers.departmentId, id));
-
-  if (assignedUserIds.length === 0) {
-    await db.batch(
-      departmentMembershipMutationBatch(
-        db.execute(departmentHierarchyLockQuery()),
-        clearMembers
-      )
-    );
-  } else {
-    await db.batch(
-      departmentMembershipMutationBatch(
-        db.execute(departmentHierarchyLockQuery()),
-        clearMembers,
-        db
-          .update(allowedUsers)
-          .set({ departmentId: id })
-          .where(inArray(allowedUsers.id, assignedUserIds))
-      )
-    );
-  }
-
-  return NextResponse.json({ ok: true, userIds: assignedUserIds });
+  const result = await dependencies.replaceMembers(id, userIds);
+  return NextResponse.json(result.body, { status: result.status });
 }

@@ -55,3 +55,11 @@ Review round 3 verification: focused exported-route tests passed 3/3, the full s
 - Added regression coverage through the actual exported DELETE route for the same-name parent/child case, plus explicit transaction-order tests for deletion and both empty and non-empty membership replacements.
 
 Final review verification: focused mutation/exported-route tests passed 6/6, the full suite passed 49/49, `npx tsc --noEmit` passed, and targeted ESLint passed.
+
+## Whole-branch membership race fix
+
+- Member replacement now rechecks the target department immediately after acquiring the shared hierarchy advisory lock. Both empty and non-empty replacements return a stable JSON 404 when a concurrent delete commits first; an empty replacement can no longer report false success for a deleted target.
+- Non-empty assignment is additionally guarded by current target existence, and PostgreSQL foreign-key violation `23503` is mapped to the same stable 404 if an out-of-band delete races the advisory-lock protocol.
+- Added a minimal dependency seam to the actual exported PUT handler and controlled route regressions for the delete/empty-PUT interleaving and foreign-key race. The transaction-order test now requires lock, target recheck, clear, then optional assignment.
+
+Whole-branch fix verification: focused mutation/exported-route tests passed 6/6, the full suite passed 54/54, `npx tsc --noEmit` passed, targeted ESLint passed, and `git diff --check` passed.
