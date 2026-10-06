@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   startOfMonth,
   endOfMonth,
@@ -15,7 +15,6 @@ import {
   isSunday,
   addMonths,
   subMonths,
-  getYear,
   isBefore,
   isAfter,
   parseISO,
@@ -29,8 +28,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import type { LeaveRecord } from "@/lib/types";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { LeaveRecord, LeaveStatus } from "@/lib/types";
 
 interface Holiday {
   date: string;
@@ -42,6 +41,8 @@ interface LeaveCalendarProps {
   records: LeaveRecord[];
   year: number;
   onDateClick?: (startDate: string, endDate: string) => void;
+  status?: LeaveStatus;
+  title?: string;
 }
 
 function isInLeaveRange(day: Date, record: LeaveRecord): boolean {
@@ -83,35 +84,41 @@ function isLongWeekend(
   return stretch.length >= 3;
 }
 
-export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+export function LeaveCalendar({ records, year, onDateClick, status, title = "Calendar" }: LeaveCalendarProps) {
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const today = new Date();
+    return new Date(year, year === today.getFullYear() ? today.getMonth() : 0, 1);
+  });
   const [holidays, setHolidays] = useState<Map<string, Holiday>>(new Map());
-  const [loadingHolidays, setLoadingHolidays] = useState(true);
+  const [loadedHolidayYear, setLoadedHolidayYear] = useState<number | null>(null);
+  const loadingHolidays = loadedHolidayYear !== year;
 
   // Date range selection
   const [selectStart, setSelectStart] = useState<string | null>(null);
   const [selectEnd, setSelectEnd] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
 
-  const fetchHolidays = useCallback(async () => {
-    setLoadingHolidays(true);
-    try {
-      const res = await fetch(`/api/holidays?year=${year}`);
-      if (res.ok) {
-        const data: Holiday[] = await res.json();
-        const map = new Map<string, Holiday>();
-        data.forEach((h) => map.set(h.date, h));
-        setHolidays(map);
-      }
-    } catch {
-      // silently fail
-    }
-    setLoadingHolidays(false);
-  }, [year]);
-
   useEffect(() => {
-    fetchHolidays();
-  }, [fetchHolidays]);
+    let cancelled = false;
+    fetch(`/api/holidays?year=${year}`)
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return (await response.json()) as Holiday[];
+      })
+      .then((data) => {
+        if (cancelled || !data) return;
+        setHolidays(new Map(data.map((holiday) => [holiday.date, holiday])));
+      })
+      .catch(() => {
+        // Holidays are supplemental; leave the calendar usable if loading fails.
+      })
+      .finally(() => {
+        if (!cancelled) setLoadedHolidayYear(year);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [year]);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -187,6 +194,7 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
     const inMonth = isSameMonth(day, currentMonth);
     const actualLeaves = records.filter((r) => r.status === "actual" && isInLeaveRange(day, r));
     const plannedLeaves = records.filter((r) => r.status === "planned" && isInLeaveRange(day, r));
+    const visibleLeaves = status === "actual" ? actualLeaves : status === "planned" ? plannedLeaves : [...actualLeaves, ...plannedLeaves];
     const onLeave = actualLeaves.length > 0 && !weekend;
     const onPlannedLeave = plannedLeaves.length > 0 && !weekend;
     const longWeekend = isLongWeekend(day, holidays);
@@ -202,6 +210,7 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
       inMonth,
       actualLeaves,
       plannedLeaves,
+      visibleLeaves,
       onLeave,
       onPlannedLeave,
       longWeekend,
@@ -220,7 +229,7 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
     <Card className="border-border/50">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold">Calendar</CardTitle>
+          <CardTitle className="text-base font-semibold">{title}</CardTitle>
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
@@ -303,13 +312,14 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
             }
 
             const clickable = onDateClick && info.inMonth;
+            const leavePeople = info.visibleLeaves;
 
             return (
               <div
                 key={info.key}
                 className={`relative flex flex-col items-center justify-center rounded-lg p-0.5 sm:p-1 min-h-[36px] sm:min-h-[44px] text-sm transition-all duration-150 ${bgClass} ${
                   info.today ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : ""
-                } ${clickable ? "cursor-pointer hover:bg-primary/10 active:scale-95" : ""}`}
+                } ${clickable ? "cursor-pointer hover:bg-primary/10 active:scale-95" : ""} ${leavePeople.length > 0 ? "group hover:z-20" : ""}`}
                 title={
                   info.holiday
                     ? `${info.holiday.name} (${info.holiday.localName})`
@@ -337,6 +347,21 @@ export function LeaveCalendar({ records, year, onDateClick }: LeaveCalendarProps
                 )}
                 {info.inMonth && info.onPlannedLeave && !info.onLeave && (
                   <span className="absolute bottom-0.5 size-1.5 rounded-full bg-teal-300 dark:bg-teal-600" />
+                )}
+                {leavePeople.length > 0 && info.inMonth && (
+                  <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-1 hidden w-52 -translate-x-1/2 rounded-lg border border-border bg-popover p-2 text-left text-xs text-popover-foreground shadow-lg group-hover:block">
+                    <p className="mb-1 font-semibold">On leave {format(day, "MMM d")}</p>
+                    <div className="space-y-1">
+                      {leavePeople.map((leave) => (
+                        <div key={`${leave.id}-${leave.status}`} className="flex items-start justify-between gap-2">
+                          <span className="min-w-0 truncate font-medium" title={leave.personEmail ?? undefined}>
+                            {leave.personName ?? leave.personEmail ?? "Unknown person"}
+                          </span>
+                          <span className="shrink-0 text-muted-foreground">{leave.type}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             );

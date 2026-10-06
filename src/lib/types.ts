@@ -30,6 +30,9 @@ export interface LeaveRecord {
   status: LeaveStatus;
   halfDay: HalfDay; // only when days is 0.5
   createdAt: string;
+  /** Optional owner details used when a calendar is shared by multiple users. */
+  personName?: string | null;
+  personEmail?: string;
 }
 
 export interface LeaveState {
