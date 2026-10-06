@@ -3,6 +3,9 @@ import {
   getDescendantDepartmentIds,
   type DepartmentNode,
 } from "@/lib/departments";
+import { canonicalizeEmailIdentity } from "@/lib/email-identity";
+
+export { canonicalizeEmailIdentity } from "@/lib/email-identity";
 
 export interface AdminLeave {
   id: string;
@@ -31,10 +34,6 @@ export type DepartmentEmployee = {
   email: string;
   departmentId: string | null;
 };
-
-export function canonicalizeEmailIdentity(email: string): string {
-  return email.trim().toLowerCase();
-}
 
 export function buildAdminLeaveRequestUrl(
   year: number,

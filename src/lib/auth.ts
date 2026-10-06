@@ -3,7 +3,6 @@ import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/lib/db";
-import { eq } from "drizzle-orm";
 import {
   users,
   accounts,
@@ -11,6 +10,7 @@ import {
   verificationTokens,
   allowedUsers,
 } from "@/lib/db/schema";
+import { allowedUserEmailCondition } from "@/lib/email-identity";
 export { isSuperAdmin } from "@/lib/departments";
 import { isSuperAdmin } from "@/lib/departments";
 
@@ -34,7 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const [allowed] = await db
         .select()
         .from(allowedUsers)
-        .where(eq(allowedUsers.email, user.email));
+        .where(allowedUserEmailCondition(user.email));
       return !!allowed;
     },
     session({ session, user }) {
@@ -52,6 +52,6 @@ export async function isAdmin(email: string): Promise<boolean> {
   const [row] = await db
     .select()
     .from(allowedUsers)
-    .where(eq(allowedUsers.email, email));
+    .where(allowedUserEmailCondition(email));
   return row?.isAdmin ?? false;
 }

@@ -1,5 +1,5 @@
 {
-  "id": "01e511c7-2403-4933-985f-d86b63a8df11",
+  "id": "c060087a-333b-4dd6-9a1c-2055deb8207d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -142,7 +142,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "allowed_user_department_id_idx": {
+          "name": "allowed_user_department_id_idx",
+          "columns": [
+            {
+              "expression": "department_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "allowed_user_department_id_department_id_fk": {
           "name": "allowed_user_department_id_department_id_fk",
@@ -210,6 +226,21 @@
         }
       },
       "indexes": {
+        "department_parent_id_idx": {
+          "name": "department_parent_id_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "department_parent_name_unique": {
           "name": "department_parent_name_unique",
           "columns": [

@@ -5,6 +5,7 @@ import {
   real,
   integer,
   boolean,
+  index,
   primaryKey,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -84,6 +85,7 @@ export const departments = pgTable(
     updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
   },
   (department) => [
+    index("department_parent_id_idx").on(department.parentId),
     uniqueIndex("department_parent_name_unique").on(
       sql`coalesce(${department.parentId}, '')`,
       sql`lower(${department.name})`
@@ -91,17 +93,23 @@ export const departments = pgTable(
   ]
 );
 
-export const allowedUsers = pgTable("allowed_user", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  email: text("email").notNull().unique(),
-  isAdmin: boolean("is_admin").notNull().default(false),
-  departmentId: text("department_id").references(() => departments.id, {
-    onDelete: "set null",
-  }),
-  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
-});
+export const allowedUsers = pgTable(
+  "allowed_user",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    email: text("email").notNull().unique(),
+    isAdmin: boolean("is_admin").notNull().default(false),
+    departmentId: text("department_id").references(() => departments.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+  },
+  (allowedUser) => [
+    index("allowed_user_department_id_idx").on(allowedUser.departmentId),
+  ]
+);
 
 // ─── Leave calculator tables ───
 

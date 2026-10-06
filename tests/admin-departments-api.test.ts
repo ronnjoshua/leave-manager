@@ -8,7 +8,10 @@ import {
   replaceDepartmentMembers,
 } from "../src/lib/admin-departments";
 import type { DepartmentNode } from "../src/lib/departments";
-import { departments as departmentsTable } from "../src/lib/db/schema";
+import {
+  allowedUsers,
+  departments as departmentsTable,
+} from "../src/lib/db/schema";
 import { getTableConfig, PgDialect } from "drizzle-orm/pg-core";
 import { SQL } from "drizzle-orm";
 
@@ -121,4 +124,16 @@ test("persists case-insensitive sibling uniqueness in the database index", () =>
     new PgDialect().sqlToQuery(nameExpression).sql,
     'lower("department"."name")'
   );
+});
+
+test("indexes both sides of department hierarchy and membership lookups", () => {
+  const departmentIndexes = getTableConfig(departmentsTable).indexes.map(
+    (candidate) => candidate.config.name
+  );
+  const allowedUserIndexes = getTableConfig(allowedUsers).indexes.map(
+    (candidate) => candidate.config.name
+  );
+
+  assert.ok(departmentIndexes.includes("department_parent_id_idx"));
+  assert.ok(allowedUserIndexes.includes("allowed_user_department_id_idx"));
 });
