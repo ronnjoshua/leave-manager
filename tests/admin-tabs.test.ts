@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getNextAdminTab, type AdminTab } from "../src/lib/admin-tabs";
+import {
+  getAvailableAdminTabs,
+  getNextAdminTab,
+  type AdminTab,
+} from "../src/lib/admin-tabs";
 
 const tabs: AdminTab[] = ["leaves", "departments", "users"];
 
@@ -16,7 +20,7 @@ test("moves to the first and last available tab with Home and End", () => {
 });
 
 test("keeps the current tab for unrelated keys and respects role-filtered tabs", () => {
-  const regularAdminTabs: AdminTab[] = ["leaves", "departments"];
+  const regularAdminTabs = getAvailableAdminTabs(false);
 
   assert.equal(
     getNextAdminTab(regularAdminTabs, "departments", "ArrowRight"),
@@ -26,4 +30,13 @@ test("keeps the current tab for unrelated keys and respects role-filtered tabs",
     getNextAdminTab(regularAdminTabs, "departments", "Enter"),
     "departments"
   );
+});
+
+test("shows Allowed Users only to the fixed superadmin role", () => {
+  assert.deepEqual(getAvailableAdminTabs(false), ["leaves", "departments"]);
+  assert.deepEqual(getAvailableAdminTabs(true), [
+    "leaves",
+    "departments",
+    "users",
+  ]);
 });

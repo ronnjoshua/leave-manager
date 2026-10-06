@@ -19,3 +19,12 @@ export function getCalendarLeaveGroups<T extends { status: LeaveStatus }>(
     visibleLeaves: [...actualLeaves, ...plannedLeaves],
   };
 }
+
+export function getCalendarOwnerLeaves<
+  T extends { personName?: string | null; personEmail?: string },
+>(leaves: T[]): T[] {
+  return leaves.filter(
+    (leave) =>
+      Boolean(leave.personName?.trim()) || Boolean(leave.personEmail?.trim())
+  );
+}

@@ -29,7 +29,10 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getCalendarLeaveGroups } from "@/lib/leave-calendar";
+import {
+  getCalendarLeaveGroups,
+  getCalendarOwnerLeaves,
+} from "@/lib/leave-calendar";
 import type { LeaveRecord, LeaveStatus } from "@/lib/types";
 
 interface Holiday {
@@ -316,13 +319,14 @@ export function LeaveCalendar({ records, year, onDateClick, status, title = "Cal
 
             const clickable = onDateClick && info.inMonth;
             const leavePeople = info.visibleLeaves;
+            const ownerLeaves = getCalendarOwnerLeaves(leavePeople);
 
             return (
               <div
                 key={info.key}
                 className={`relative flex flex-col items-center justify-center rounded-lg p-0.5 sm:p-1 min-h-[36px] sm:min-h-[44px] text-sm transition-all duration-150 ${bgClass} ${
                   info.today ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : ""
-                } ${clickable ? "cursor-pointer hover:bg-primary/10 active:scale-95" : ""} ${leavePeople.length > 0 ? "group hover:z-20" : ""}`}
+                } ${clickable ? "cursor-pointer hover:bg-primary/10 active:scale-95" : ""} ${ownerLeaves.length > 0 ? "group hover:z-20" : ""}`}
                 title={
                   info.holiday
                     ? `${info.holiday.name} (${info.holiday.localName})`
@@ -351,11 +355,11 @@ export function LeaveCalendar({ records, year, onDateClick, status, title = "Cal
                 {info.inMonth && info.onPlannedLeave && !info.onLeave && (
                   <span className="absolute bottom-0.5 size-1.5 rounded-full bg-teal-300 dark:bg-teal-600" />
                 )}
-                {leavePeople.length > 0 && info.inMonth && (
+                {ownerLeaves.length > 0 && info.inMonth && (
                   <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-1 hidden w-52 -translate-x-1/2 rounded-lg border border-border bg-popover p-2 text-left text-xs text-popover-foreground shadow-lg group-hover:block">
                     <p className="mb-1 font-semibold">On leave {format(day, "MMM d")}</p>
                     <div className="space-y-1">
-                      {leavePeople.map((leave) => (
+                      {ownerLeaves.map((leave) => (
                         <div key={`${leave.id}-${leave.status}`} className="flex items-start justify-between gap-2">
                           <span className="min-w-0 truncate font-medium" title={leave.personEmail ?? undefined}>
                             {leave.personName ?? leave.personEmail ?? "Unknown person"}

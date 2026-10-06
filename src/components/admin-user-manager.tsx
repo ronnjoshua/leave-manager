@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -20,7 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, UserPlus, Users } from "lucide-react";
+import { Plus, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
+import { getAllowedUserControls } from "@/lib/admin-user-ui";
 
 interface AllowedUser {
   id: string;
@@ -29,24 +30,60 @@ interface AllowedUser {
   createdAt: string;
 }
 
-export function AdminUserManager() {
+async function responseError(response: Response, fallback: string) {
+  try {
+    const body = (await response.json()) as { error?: unknown };
+    return typeof body.error === "string" && body.error ? body.error : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function requestAllowedUsers(): Promise<AllowedUser[]> {
+  const response = await fetch("/api/admin/users");
+  if (!response.ok) {
+    throw new Error(await responseError(response, "Failed to load users"));
+  }
+  return (await response.json()) as AllowedUser[];
+}
+
+export function AdminUserManager({
+  canManageRoles,
+}: {
+  canManageRoles: boolean;
+}) {
   const [users, setUsers] = useState<AllowedUser[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
-
-  const fetchUsers = useCallback(async () => {
-    const res = await fetch("/api/admin/users");
-    if (res.ok) {
-      setUsers(await res.json());
-    }
-    setIsLoaded(true);
-  }, []);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    let cancelled = false;
+    requestAllowedUsers()
+      .then((nextUsers) => {
+        if (!cancelled) {
+          setUsers(nextUsers);
+          setError("");
+        }
+      })
+      .catch((loadError: unknown) => {
+        if (!cancelled) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Failed to load users"
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -67,19 +104,61 @@ export function AdminUserManager() {
       setUsers((prev) => [...prev, user]);
       setNewEmail("");
     } else {
-      const data = await res.json();
-      setError(data.error || "Failed to add user");
+      setError(await responseError(res, "Failed to add user"));
     }
     setAdding(false);
   }
 
-  async function handleRemove(id: string) {
-    const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      setUsers((prev) => prev.filter((u) => u.id !== id));
-    } else {
-      const data = await res.json();
-      setError(data.error || "Failed to remove user");
+  async function handleRoleChange(user: AllowedUser) {
+    if (!canManageRoles) return;
+    setPendingUserId(user.id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isAdmin: !user.isAdmin }),
+      });
+      if (!res.ok) {
+        throw new Error(await responseError(res, "Failed to update user role"));
+      }
+      const updated = (await res.json()) as AllowedUser;
+      setUsers((current) =>
+        current.map((candidate) =>
+          candidate.id === updated.id ? updated : candidate
+        )
+      );
+    } catch (roleError) {
+      setError(
+        roleError instanceof Error
+          ? roleError.message
+          : "Failed to update user role"
+      );
+    } finally {
+      setPendingUserId(null);
+    }
+  }
+
+  async function handleRemove(user: AllowedUser) {
+    if (!window.confirm(`Remove access for ${user.email}?`)) return;
+    setPendingUserId(user.id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error(await responseError(res, "Failed to remove user"));
+      }
+      setUsers((prev) => prev.filter((candidate) => candidate.id !== user.id));
+    } catch (removeError) {
+      setError(
+        removeError instanceof Error
+          ? removeError.message
+          : "Failed to remove user"
+      );
+    } finally {
+      setPendingUserId(null);
     }
   }
 
@@ -96,6 +175,14 @@ export function AdminUserManager() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          {error}
+        </div>
+      )}
       {/* Add User */}
       <Card>
         <CardHeader>
@@ -130,9 +217,6 @@ export function AdminUserManager() {
               Add
             </Button>
           </form>
-          {error && (
-            <p className="text-sm text-destructive mt-2">{error}</p>
-          )}
         </CardContent>
       </Card>
 
@@ -161,42 +245,67 @@ export function AdminUserManager() {
                 <TableRow>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+                  <TableHead>Access controls</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">
-                      {user.email}
-                    </TableCell>
-                    <TableCell>
-                      {user.isAdmin ? (
-                        <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
-                          Admin
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">User</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {user.isAdmin ? (
-                        <span className="text-xs text-muted-foreground">
-                          Protected
-                        </span>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="size-8 p-0 text-destructive hover:text-destructive"
-                          onClick={() => handleRemove(user.id)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {users.map((user) => {
+                  const controls = getAllowedUserControls(user);
+                  const pending = pendingUserId === user.id;
+                  return (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">
+                        {user.email}
+                      </TableCell>
+                      <TableCell>
+                        {user.isAdmin ? (
+                          <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
+                            Admin
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">User</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {controls.isProtected ? (
+                          <span className="text-xs text-muted-foreground">
+                            Fixed superadmin
+                          </span>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {canManageRoles && controls.roleAction && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRoleChange(user)}
+                                disabled={pending}
+                                aria-label={`${controls.roleAction === "grant" ? "Grant" : "Revoke"} admin access for ${user.email}`}
+                              >
+                                <ShieldCheck />
+                                {controls.roleAction === "grant"
+                                  ? "Grant admin"
+                                  : "Revoke admin"}
+                              </Button>
+                            )}
+                            {controls.canRemove && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => handleRemove(user)}
+                                disabled={pending}
+                                aria-label={`Remove access for ${user.email}`}
+                              >
+                                <Trash2 />
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

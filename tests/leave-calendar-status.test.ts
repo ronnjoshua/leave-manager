@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getCalendarLeaveGroups } from "../src/lib/leave-calendar";
+import {
+  getCalendarLeaveGroups,
+  getCalendarOwnerLeaves,
+} from "../src/lib/leave-calendar";
 
 const leaves = [
   { id: "actual", status: "actual" as const },
@@ -32,4 +35,15 @@ test("mixed calendars preserve actual and planned leave behavior", () => {
     "actual",
     "planned",
   ]);
+});
+
+test("shows shared owner rows only when leave records carry owner metadata", () => {
+  assert.deepEqual(
+    getCalendarOwnerLeaves([
+      { id: "personal", personName: null, personEmail: undefined },
+      { id: "named", personName: "Ana", personEmail: undefined },
+      { id: "emailed", personName: null, personEmail: "ben@example.com" },
+    ]).map(({ id }) => id),
+    ["named", "emailed"]
+  );
 });

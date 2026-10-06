@@ -1,5 +1,11 @@
 export type AdminTab = "leaves" | "departments" | "users";
 
+export function getAvailableAdminTabs(isSuperAdmin: boolean): AdminTab[] {
+  return isSuperAdmin
+    ? ["leaves", "departments", "users"]
+    : ["leaves", "departments"];
+}
+
 export function getNextAdminTab(
   tabs: AdminTab[],
   current: AdminTab,

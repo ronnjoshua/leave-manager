@@ -6,15 +6,17 @@ import { Building2, CalendarDays, Users } from "lucide-react";
 import { AdminDepartmentManager } from "@/components/admin-department-manager";
 import { AdminLeaveManager } from "@/components/admin-leave-manager";
 import { AdminUserManager } from "@/components/admin-user-manager";
-import { getNextAdminTab, type AdminTab } from "@/lib/admin-tabs";
+import {
+  getAvailableAdminTabs,
+  getNextAdminTab,
+  type AdminTab,
+} from "@/lib/admin-tabs";
 import { cn } from "@/lib/utils";
 
 export function AdminTabs({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const [activeTab, setActiveTab] = useState<AdminTab>("leaves");
   const tabRefs = useRef(new Map<AdminTab, HTMLButtonElement>());
-  const availableTabs: AdminTab[] = isSuperAdmin
-    ? ["leaves", "departments", "users"]
-    : ["leaves", "departments"];
+  const availableTabs = getAvailableAdminTabs(isSuperAdmin);
 
   function handleKeyDown(
     event: KeyboardEvent<HTMLButtonElement>,
@@ -98,7 +100,9 @@ export function AdminTabs({ isSuperAdmin }: { isSuperAdmin: boolean }) {
           tabIndex={0}
           hidden={activeTab !== "users"}
         >
-          {activeTab === "users" && <AdminUserManager />}
+          {activeTab === "users" && (
+            <AdminUserManager canManageRoles={isSuperAdmin} />
+          )}
         </div>
       )}
     </div>
