@@ -17,3 +17,10 @@
 
 - The schema uses a SQL `coalesce(parent_id, '')` expression in the unique index so duplicate root names are prevented as well as duplicate sibling names. API-level name trimming and mutation validation remain for Task 2.
 - Existing unrelated calendar/admin working-tree changes were preserved.
+
+## Review fixes
+
+- Strengthened the malformed convergence test with duplicate department IDs so the visited-set behavior is asserted directly.
+- Replaced the self-reference's `any` annotation with Drizzle's `AnyPgColumn` type.
+
+Verification after fixes: focused departments tests passed, full test suite passed (8 tests), `npx tsc --noEmit` passed, and targeted ESLint passed for the changed source/test files.

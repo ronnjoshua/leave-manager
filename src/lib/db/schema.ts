@@ -9,6 +9,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core/columns/common";
 import type { AdapterAccountType } from "next-auth/adapters";
 
 // ─── Auth.js tables ───
@@ -76,7 +77,7 @@ export const departments = pgTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     name: text("name").notNull(),
-    parentId: text("parent_id").references((): any => departments.id, {
+    parentId: text("parent_id").references((): AnyPgColumn => departments.id, {
       onDelete: "set null",
     }),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),

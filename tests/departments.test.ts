@@ -27,12 +27,16 @@ test("resolves nested descendants from a root", () => {
 test("does not duplicate a department when malformed parent data converges", () => {
   const converging = [
     ...departments,
-    { id: "duplicate-parent-reference", name: "Duplicate", parentId: "platform" },
+    { id: "shared", name: "Shared", parentId: "platform" },
+    { id: "shared", name: "Shared", parentId: "security" },
   ];
-  assert.equal(
-    new Set(getDescendantDepartmentIds(converging, "engineering")).size,
-    getDescendantDepartmentIds(converging, "engineering").length
-  );
+  assert.deepEqual(getDescendantDepartmentIds(converging, "engineering"), [
+    "engineering",
+    "platform",
+    "developer-experience",
+    "shared",
+    "security",
+  ]);
 });
 
 test("rejects a department as its own parent and rejects descendants as parents", () => {
