@@ -256,6 +256,7 @@ export function AdminLeaveManager() {
               year={year}
               status="actual"
               title="Actual leaves"
+              navigationYear={year}
             />
           </CardContent>
         </Card>
@@ -271,6 +272,7 @@ export function AdminLeaveManager() {
               year={year}
               status="planned"
               title="Planned leaves"
+              navigationYear={year}
             />
           </CardContent>
         </Card>

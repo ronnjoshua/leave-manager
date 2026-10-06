@@ -13,8 +13,6 @@ import {
   isWeekend,
   isSaturday,
   isSunday,
-  addMonths,
-  subMonths,
   isBefore,
   isAfter,
   parseISO,
@@ -30,6 +28,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
+  getCalendarNavigationMonth,
   getCalendarLeaveGroups,
   getCalendarOwnerLeaves,
 } from "@/lib/leave-calendar";
@@ -47,6 +46,7 @@ interface LeaveCalendarProps {
   onDateClick?: (startDate: string, endDate: string) => void;
   status?: LeaveStatus;
   title?: string;
+  navigationYear?: number;
 }
 
 function isInLeaveRange(day: Date, record: LeaveRecord): boolean {
@@ -88,7 +88,14 @@ function isLongWeekend(
   return stretch.length >= 3;
 }
 
-export function LeaveCalendar({ records, year, onDateClick, status, title = "Calendar" }: LeaveCalendarProps) {
+export function LeaveCalendar({
+  records,
+  year,
+  onDateClick,
+  status,
+  title = "Calendar",
+  navigationYear,
+}: LeaveCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const today = new Date();
     return new Date(year, year === today.getFullYear() ? today.getMonth() : 0, 1);
@@ -241,14 +248,41 @@ export function LeaveCalendar({ records, year, onDateClick, status, title = "Cal
               variant="ghost"
               size="sm"
               className="size-8 p-0 rounded-full"
-              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+              onClick={() =>
+                setCurrentMonth((month) =>
+                  getCalendarNavigationMonth(
+                    month,
+                    "previous",
+                    navigationYear
+                  )
+                )
+              }
+              disabled={
+                navigationYear !== undefined &&
+                currentMonth.getFullYear() === navigationYear &&
+                currentMonth.getMonth() === 0
+              }
+              aria-label="Previous month"
             >
               <ChevronLeft className="size-4" />
             </Button>
             <button
               className="text-sm font-semibold min-w-[130px] text-center hover:text-primary transition-colors px-2 py-1 rounded-lg hover:bg-accent"
-              onClick={() => setCurrentMonth(new Date())}
-              title="Go to today"
+              onClick={() =>
+                setCurrentMonth((month) =>
+                  getCalendarNavigationMonth(month, "today", navigationYear)
+                )
+              }
+              disabled={
+                navigationYear !== undefined &&
+                navigationYear !== new Date().getFullYear()
+              }
+              title={
+                navigationYear !== undefined &&
+                navigationYear !== new Date().getFullYear()
+                  ? `Viewing ${navigationYear}`
+                  : "Go to today"
+              }
             >
               {format(currentMonth, "MMMM yyyy")}
             </button>
@@ -256,7 +290,17 @@ export function LeaveCalendar({ records, year, onDateClick, status, title = "Cal
               variant="ghost"
               size="sm"
               className="size-8 p-0 rounded-full"
-              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+              onClick={() =>
+                setCurrentMonth((month) =>
+                  getCalendarNavigationMonth(month, "next", navigationYear)
+                )
+              }
+              disabled={
+                navigationYear !== undefined &&
+                currentMonth.getFullYear() === navigationYear &&
+                currentMonth.getMonth() === 11
+              }
+              aria-label="Next month"
             >
               <ChevronRight className="size-4" />
             </Button>

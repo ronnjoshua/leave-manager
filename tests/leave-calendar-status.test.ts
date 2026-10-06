@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  getCalendarNavigationMonth,
   getCalendarLeaveGroups,
   getCalendarOwnerLeaves,
 } from "../src/lib/leave-calendar";
@@ -45,5 +46,55 @@ test("shows shared owner rows only when leave records carry owner metadata", () 
       { id: "emailed", personName: null, personEmail: "ben@example.com" },
     ]).map(({ id }) => id),
     ["named", "emailed"]
+  );
+});
+
+test("report calendars stop at the selected year's month boundaries", () => {
+  assert.equal(
+    getCalendarNavigationMonth(
+      new Date(2025, 0, 1),
+      "previous",
+      2025
+    ).toISOString(),
+    new Date(2025, 0, 1).toISOString()
+  );
+  assert.equal(
+    getCalendarNavigationMonth(
+      new Date(2025, 11, 1),
+      "next",
+      2025
+    ).toISOString(),
+    new Date(2025, 11, 1).toISOString()
+  );
+});
+
+test("report calendars do not jump to today when today is in another year", () => {
+  assert.equal(
+    getCalendarNavigationMonth(
+      new Date(2025, 5, 1),
+      "today",
+      2025,
+      new Date(2026, 9, 6)
+    ).toISOString(),
+    new Date(2025, 5, 1).toISOString()
+  );
+});
+
+test("personal calendars preserve unrestricted cross-year navigation", () => {
+  assert.equal(
+    getCalendarNavigationMonth(
+      new Date(2025, 0, 1),
+      "previous"
+    ).toISOString(),
+    new Date(2024, 11, 1).toISOString()
+  );
+  assert.equal(
+    getCalendarNavigationMonth(
+      new Date(2025, 5, 1),
+      "today",
+      undefined,
+      new Date(2026, 9, 6)
+    ).toISOString(),
+    new Date(2026, 9, 1).toISOString()
   );
 });
