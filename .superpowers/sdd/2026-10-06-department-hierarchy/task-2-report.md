@@ -22,3 +22,13 @@
 
 - The project uses Drizzle's Neon HTTP driver, whose callback-style `db.transaction()` deliberately throws because interactive transactions are unsupported. Department mutations therefore use `db.batch(...)`; in this driver Drizzle submits the statements through Neon's `client.transaction(...)`, preserving atomic transaction semantics for delete and membership replacement.
 - Signed-role browser/API verification remains manual. The existing browser sessions point at the deployed app, while unsigned localhost requests are redirected to `/login` by middleware before the route-level 403 guards run. No accounts or sessions were modified to manufacture test roles.
+
+## Review fixes — round 1
+
+- Department deletion now detects direct-child promotion collisions before mutation and maps concurrent database uniqueness conflicts to a stable 409. The transaction rolls back member clearing and child promotion on conflict.
+- The sibling-name unique index now stores `lower(name)` alongside the normalized parent key, so concurrent case variants are rejected by PostgreSQL rather than only by the in-memory precheck.
+- POST, PATCH, and DELETE hierarchy mutations now share a transaction-scoped PostgreSQL advisory lock. Reparenting additionally re-evaluates parent existence and descendants in a recursive SQL predicate after the lock is acquired, preventing two concurrent reparent operations from creating a cycle.
+- Allowed-user and role authorization now uses a testable `canManageAllowedUsers` guard shared by every route. Tests prove a regular-admin email is denied and the fixed superadmin email is allowed.
+- Added focused coverage for deletion promotion conflicts, the normalized persistence index, hierarchy serialization/current-state cycle validation SQL, and allowed-user authorization.
+
+Review verification: the focused review tests passed 11/11, the full suite passed 19/19, `npx tsc --noEmit` passed, and targeted ESLint passed.

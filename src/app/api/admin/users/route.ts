@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, isSuperAdmin } from "@/lib/auth";
+import { auth } from "@/lib/auth";
+import { canManageAllowedUsers } from "@/lib/admin-authorization";
 import { db } from "@/lib/db";
 import { allowedUsers } from "@/lib/db/schema";
 
@@ -7,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const session = await auth();
-  if (!isSuperAdmin(session?.user?.email)) {
+  if (!canManageAllowedUsers(session?.user?.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -21,7 +22,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!isSuperAdmin(session?.user?.email)) {
+  if (!canManageAllowedUsers(session?.user?.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

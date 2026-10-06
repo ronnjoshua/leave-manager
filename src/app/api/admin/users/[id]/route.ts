@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, isSuperAdmin } from "@/lib/auth";
+import { canManageAllowedUsers } from "@/lib/admin-authorization";
 import { db } from "@/lib/db";
 import { allowedUsers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -11,7 +12,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!isSuperAdmin(session?.user?.email)) {
+  if (!canManageAllowedUsers(session?.user?.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -43,7 +44,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!isSuperAdmin(session?.user?.email)) {
+  if (!canManageAllowedUsers(session?.user?.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

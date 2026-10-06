@@ -86,7 +86,7 @@ export const departments = pgTable(
   (department) => [
     uniqueIndex("department_parent_name_unique").on(
       sql`coalesce(${department.parentId}, '')`,
-      department.name
+      sql`lower(${department.name})`
     ),
   ]
 );

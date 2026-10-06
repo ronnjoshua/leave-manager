@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { auth, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { allowedUsers, departments } from "@/lib/db/schema";
 import {
+  hasDepartmentPromotionConflict,
   hasSiblingDepartmentName,
   isValidDepartmentParent,
   normalizeDepartmentName,
 } from "@/lib/admin-departments";
+import {
+  departmentHierarchyLockQuery,
+  departmentParentConstraint,
+} from "@/lib/department-mutations";
 
 export const dynamic = "force-dynamic";
 
@@ -104,13 +109,37 @@ export async function PATCH(request: NextRequest, { params }: Context) {
   }
 
   try {
-    const [updatedRows] = await db.batch([
+    const updateValues: Partial<typeof departments.$inferInsert> = {
+      updatedAt: new Date(),
+    };
+    if (hasName) updateValues.name = name;
+    if (hasParentId) updateValues.parentId = parentId;
+
+    const [, updatedRows] = await db.batch([
+      db.execute(departmentHierarchyLockQuery()),
       db
         .update(departments)
-        .set({ name, parentId, updatedAt: new Date() })
-        .where(eq(departments.id, id))
+        .set(updateValues)
+        .where(
+          and(
+            eq(departments.id, id),
+            hasParentId
+              ? departmentParentConstraint(id, parentId)
+              : undefined
+          )
+        )
         .returning(),
     ]);
+    if (!updatedRows[0]) {
+      return NextResponse.json(
+        {
+          error: hasParentId
+            ? "Department parent would create a cycle or the hierarchy changed"
+            : "Department not found",
+        },
+        { status: hasParentId ? 409 : 404 }
+      );
+    }
     return NextResponse.json(updatedRows[0]);
   } catch (error) {
     const code = databaseErrorCode(error);
@@ -137,25 +166,68 @@ export async function DELETE(_request: NextRequest, { params }: Context) {
   }
 
   const { id } = await params;
-  const [target] = await db
-    .select({ parentId: departments.parentId })
-    .from(departments)
-    .where(eq(departments.id, id));
+  const departmentRows = await db
+    .select({
+      id: departments.id,
+      name: departments.name,
+      parentId: departments.parentId,
+    })
+    .from(departments);
+  const target = departmentRows.find((department) => department.id === id);
   if (!target) {
     return NextResponse.json({ error: "Department not found" }, { status: 404 });
   }
+  if (hasDepartmentPromotionConflict(departmentRows, id)) {
+    return NextResponse.json(
+      {
+        error:
+          "Cannot delete department because promoting its children would create duplicate sibling names",
+      },
+      { status: 409 }
+    );
+  }
 
-  await db.batch([
-    db
-      .update(allowedUsers)
-      .set({ departmentId: null })
-      .where(eq(allowedUsers.departmentId, id)),
-    db
-      .update(departments)
-      .set({ parentId: target.parentId, updatedAt: new Date() })
-      .where(eq(departments.parentId, id)),
-    db.delete(departments).where(eq(departments.id, id)),
-  ]);
+  try {
+    const [, , , deletedRows] = await db.batch([
+      db.execute(departmentHierarchyLockQuery()),
+      db
+        .update(allowedUsers)
+        .set({ departmentId: null })
+        .where(eq(allowedUsers.departmentId, id)),
+      db
+        .update(departments)
+        .set({
+          parentId: sql`(
+            select current_target.parent_id
+            from ${departments} current_target
+            where current_target.id = ${id}
+          )`,
+          updatedAt: new Date(),
+        })
+        .where(eq(departments.parentId, id)),
+      db
+        .delete(departments)
+        .where(eq(departments.id, id))
+        .returning({ id: departments.id }),
+    ]);
+    if (!deletedRows[0]) {
+      return NextResponse.json(
+        { error: "Department not found" },
+        { status: 404 }
+      );
+    }
+  } catch (error) {
+    if (databaseErrorCode(error) === "23505") {
+      return NextResponse.json(
+        {
+          error:
+            "Cannot delete department because promoting its children would create duplicate sibling names",
+        },
+        { status: 409 }
+      );
+    }
+    throw error;
+  }
 
   return NextResponse.json({ ok: true });
 }

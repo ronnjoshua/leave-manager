@@ -42,6 +42,35 @@ export function isValidDepartmentParent(
   return canSetDepartmentParent(departments, departmentId, parentId);
 }
 
+export function hasDepartmentPromotionConflict(
+  departments: DepartmentNode[],
+  departmentId: string
+): boolean {
+  const target = departments.find(
+    (department) => department.id === departmentId
+  );
+  if (!target) return false;
+
+  const occupiedNames = new Set(
+    departments
+      .filter(
+        (department) =>
+          department.id !== departmentId &&
+          department.parentId === target.parentId
+      )
+      .map((department) => department.name.trim().toLowerCase())
+  );
+
+  for (const child of departments.filter(
+    (department) => department.parentId === departmentId
+  )) {
+    const childName = child.name.trim().toLowerCase();
+    if (occupiedNames.has(childName)) return true;
+    occupiedNames.add(childName);
+  }
+  return false;
+}
+
 export function replaceDepartmentMembers<
   T extends { id: string; departmentId: string | null },
 >(users: T[], departmentId: string, userIds: string[]): T[] {

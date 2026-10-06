@@ -8,6 +8,7 @@ import {
   isValidDepartmentParent,
   normalizeDepartmentName,
 } from "@/lib/admin-departments";
+import { departmentHierarchyLockQuery } from "@/lib/department-mutations";
 
 export const dynamic = "force-dynamic";
 
@@ -117,7 +118,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const [createdRows] = await db.batch([
+    const [, createdRows] = await db.batch([
+      db.execute(departmentHierarchyLockQuery()),
       db
         .insert(departments)
         .values({ name: nameResult.name, parentId })

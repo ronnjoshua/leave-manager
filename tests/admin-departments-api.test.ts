@@ -1,12 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  hasDepartmentPromotionConflict,
   hasSiblingDepartmentName,
   isValidDepartmentParent,
   normalizeDepartmentName,
   replaceDepartmentMembers,
 } from "../src/lib/admin-departments";
 import type { DepartmentNode } from "../src/lib/departments";
+import { departments as departmentsTable } from "../src/lib/db/schema";
+import { getTableConfig, PgDialect } from "drizzle-orm/pg-core";
+import { SQL } from "drizzle-orm";
 
 const departments: DepartmentNode[] = [
   { id: "engineering", name: "Engineering", parentId: null },
@@ -86,5 +90,35 @@ test("replacement membership assigns every user to at most one department", () =
       { id: "ben", departmentId: null },
       { id: "cara", departmentId: "platform" },
     ]
+  );
+});
+
+test("rejects deleting a department when child promotion would duplicate a sibling", () => {
+  const promotionDepartments: DepartmentNode[] = [
+    { id: "existing-sales", name: "Sales", parentId: null },
+    { id: "division", name: "Division", parentId: null },
+    { id: "promoted-sales", name: " sales ", parentId: "division" },
+  ];
+
+  assert.equal(
+    hasDepartmentPromotionConflict(promotionDepartments, "division"),
+    true
+  );
+  assert.equal(
+    hasDepartmentPromotionConflict(promotionDepartments, "promoted-sales"),
+    false
+  );
+});
+
+test("persists case-insensitive sibling uniqueness in the database index", () => {
+  const index = getTableConfig(departmentsTable).indexes.find(
+    (candidate) => candidate.config.name === "department_parent_name_unique"
+  );
+  assert.ok(index);
+  const nameExpression = index.config.columns[1];
+  assert.ok(nameExpression instanceof SQL);
+  assert.equal(
+    new PgDialect().sqlToQuery(nameExpression).sql,
+    'lower("department"."name")'
   );
 });
