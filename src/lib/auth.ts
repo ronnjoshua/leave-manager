@@ -11,6 +11,8 @@ import {
   verificationTokens,
   allowedUsers,
 } from "@/lib/db/schema";
+export { isSuperAdmin } from "@/lib/departments";
+import { isSuperAdmin } from "@/lib/departments";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
@@ -46,6 +48,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
  * Check if a user email is an admin.
  */
 export async function isAdmin(email: string): Promise<boolean> {
+  if (isSuperAdmin(email)) return true;
   const [row] = await db
     .select()
     .from(allowedUsers)

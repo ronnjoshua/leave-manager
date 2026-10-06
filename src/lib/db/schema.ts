@@ -6,7 +6,9 @@ import {
   integer,
   boolean,
   primaryKey,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type { AdapterAccountType } from "next-auth/adapters";
 
 // ─── Auth.js tables ───
@@ -67,12 +69,36 @@ export const verificationTokens = pgTable(
 
 // ─── Access control ───
 
+export const departments = pgTable(
+  "department",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(),
+    parentId: text("parent_id").references((): any => departments.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
+  },
+  (department) => [
+    uniqueIndex("department_parent_name_unique").on(
+      sql`coalesce(${department.parentId}, '')`,
+      department.name
+    ),
+  ]
+);
+
 export const allowedUsers = pgTable("allowed_user", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   email: text("email").notNull().unique(),
   isAdmin: boolean("is_admin").notNull().default(false),
+  departmentId: text("department_id").references(() => departments.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
 });
 
