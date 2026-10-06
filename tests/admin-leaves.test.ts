@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildAdminLeaveRequestUrl,
+  canonicalizeEmailIdentity,
   filterEmployeesForDepartment,
   filterAdminLeaves,
   getAdminLeaveAvailableYears,
@@ -99,6 +100,31 @@ test("unassigned employees appear only in All Employees", () => {
       (employee) => employee.email === "unassigned@example.com"
     ),
     false
+  );
+});
+
+test("canonicalizes mixed-case email identities for leave report matching", () => {
+  assert.equal(
+    canonicalizeEmailIdentity("  Nucup53@Gmail.com "),
+    "nucup53@gmail.com"
+  );
+  assert.deepEqual(
+    filterAdminLeaves(
+      [
+        {
+          ...leaves[0],
+          id: "mixed-case-email",
+          email: "Nucup53@Gmail.com",
+        },
+      ],
+      {
+        employee: "nucup53@gmail.com",
+        status: "all",
+        type: "all",
+        search: "",
+      }
+    ).map((leave) => leave.id),
+    ["mixed-case-email"]
   );
 });
 

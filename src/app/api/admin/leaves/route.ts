@@ -10,6 +10,7 @@ import {
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { getYear } from "date-fns";
 import {
+  canonicalizeEmailIdentity,
   filterEmployeesForDepartment,
   getAdminLeaveAvailableYears,
 } from "@/lib/admin-leaves";
@@ -57,18 +58,25 @@ export async function GET(req: NextRequest) {
         departmentId: allowedUsers.departmentId,
       })
       .from(allowedUsers);
-    scopedEmployeeEmails = filterEmployeesForDepartment(
-      departmentRows,
-      employeeRows,
-      departmentId
-    ).map((employee) => employee.email);
+    scopedEmployeeEmails = Array.from(
+      new Set(
+        filterEmployeesForDepartment(
+          departmentRows,
+          employeeRows,
+          departmentId
+        ).map((employee) => canonicalizeEmailIdentity(employee.email))
+      )
+    );
   }
 
   const departmentCondition =
     scopedEmployeeEmails === null
       ? undefined
       : scopedEmployeeEmails.length > 0
-        ? inArray(users.email, scopedEmployeeEmails)
+        ? inArray(
+            sql<string>`lower(trim(${users.email}))`,
+            scopedEmployeeEmails
+          )
         : sql<boolean>`false`;
 
   const [records, years] = await Promise.all([

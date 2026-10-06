@@ -32,6 +32,10 @@ export type DepartmentEmployee = {
   departmentId: string | null;
 };
 
+export function canonicalizeEmailIdentity(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 export function buildAdminLeaveRequestUrl(
   year: number,
   departmentId: string
@@ -89,7 +93,9 @@ export function filterAdminLeaves(
 
   return leaves.filter((leave) => {
     const employeeMatch =
-      filters.employee === "all" || leave.email === filters.employee;
+      filters.employee === "all" ||
+      canonicalizeEmailIdentity(leave.email) ===
+        canonicalizeEmailIdentity(filters.employee);
     const statusMatch =
       filters.status === "all" || leave.status === filters.status;
     const typeMatch = filters.type === "all" || leave.type === filters.type;
