@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, isAdmin } from "@/lib/auth";
+import { auth, isSuperAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { allowedUsers } from "@/lib/db/schema";
 
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user?.email || !(await isAdmin(session.user.email))) {
+  if (!isSuperAdmin(session?.user?.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -21,12 +21,21 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.email || !(await isAdmin(session.user.email))) {
+  if (!isSuperAdmin(session?.user?.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json();
-  const email = body.email?.trim().toLowerCase();
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+  const rawEmail = (body as Record<string, unknown>).email;
+  const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
   if (!email) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
