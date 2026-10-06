@@ -1,7 +1,6 @@
-import { auth, isAdmin } from "@/lib/auth";
+import { auth, isAdmin, isSuperAdmin } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { AdminUserManager } from "@/components/admin-user-manager";
-import { Shield } from "lucide-react";
+import { AdminTabs } from "@/components/admin-tabs";
 import { AppIcon } from "@/components/app-icon";
 import Link from "next/link";
 
@@ -21,10 +20,10 @@ export default async function AdminPage() {
               <AppIcon size={36} />
               <div>
                 <h1 className="text-xl font-semibold tracking-tight">
-                  User Management
+                  Administration
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  Manage who can access Leave Tracker
+                  Manage team leave, departments, and access
                 </p>
               </div>
             </div>
@@ -38,8 +37,8 @@ export default async function AdminPage() {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-6 py-8">
-        <AdminUserManager />
+      <main className="mx-auto max-w-6xl px-6 py-8">
+        <AdminTabs isSuperAdmin={isSuperAdmin(session.user.email)} />
       </main>
     </div>
   );
