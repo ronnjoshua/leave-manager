@@ -29,16 +29,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  buildAdminLeaveRequestUrl,
   filterAdminLeaves,
   summarizeAdminLeaves,
   type AdminLeave,
   type AdminLeaveFilters,
 } from "@/lib/admin-leaves";
+import { sortDepartmentsForDisplay } from "@/lib/admin-department-ui";
+import type { DepartmentNode } from "@/lib/departments";
 import type { LeaveRecord } from "@/lib/types";
 
 interface AdminLeaveResponse {
   year: number;
   currentYear: number;
+  departmentId: string;
+  departments: DepartmentNode[];
   availableYears: number[];
   records: AdminLeave[];
 }
@@ -62,6 +67,7 @@ function formatDate(date: string) {
 
 export function AdminLeaveManager() {
   const [year, setYear] = useState(new Date().getFullYear());
+  const [departmentId, setDepartmentId] = useState("all");
   const [data, setData] = useState<AdminLeaveResponse | null>(null);
   const [filters, setFilters] = useState<AdminLeaveFilters>(initialFilters);
   const [loading, setLoading] = useState(true);
@@ -69,7 +75,7 @@ export function AdminLeaveManager() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/admin/leaves?year=${year}`)
+    fetch(buildAdminLeaveRequestUrl(year, departmentId))
       .then(async (res) => {
         if (!res.ok) throw new Error("Unable to load leave records");
         return (await res.json()) as AdminLeaveResponse;
@@ -90,9 +96,11 @@ export function AdminLeaveManager() {
     return () => {
       cancelled = true;
     };
-  }, [year]);
+  }, [departmentId, year]);
 
-  const records = useMemo(() => data?.records ?? [], [data]);
+  const activeData =
+    data?.year === year && data.departmentId === departmentId ? data : null;
+  const records = useMemo(() => activeData?.records ?? [], [activeData]);
   const filteredRecords = useMemo(
     () => filterAdminLeaves(records, filters),
     [records, filters]
@@ -117,6 +125,16 @@ export function AdminLeaveManager() {
     () => Array.from(new Set(records.map((record) => record.type))).sort(),
     [records]
   );
+  const departmentRows = useMemo(
+    () => sortDepartmentsForDisplay(activeData?.departments ?? []),
+    [activeData]
+  );
+  const selectedDepartmentName =
+    departmentId === "all"
+      ? "All Employees"
+      : (activeData?.departments.find(
+          (department) => department.id === departmentId
+        )?.name ?? "Department");
 
   const calendarRecords: LeaveRecord[] = filteredRecords.map((record) => ({
     id: record.id,
@@ -144,7 +162,20 @@ export function AdminLeaveManager() {
     setFilters(initialFilters);
   }
 
-  if (loading && !data) {
+  function selectDepartment(value: string | null) {
+    if (!value) return;
+    setLoading(true);
+    setDepartmentId(value);
+    setFilters((current) => ({ ...current, employee: "all" }));
+  }
+
+  function selectYear(value: string | null) {
+    if (!value) return;
+    setLoading(true);
+    setYear(Number(value));
+  }
+
+  if (loading && !activeData) {
     return (
       <div className="flex min-h-[300px] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -168,28 +199,48 @@ export function AdminLeaveManager() {
         <SummaryCard label="Planned days" value={summary.plannedDays} />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-base font-semibold">
             <CalendarDays className="size-4" />
             Team leave calendars
           </h2>
           <p className="text-sm text-muted-foreground">
-            Hover a marked day to see who is away on that date.
+            {selectedDepartmentName}. Hover a marked day to see who is away on
+            that date.
           </p>
         </div>
-        <Select value={String(year)} onValueChange={(value) => setYear(Number(value))}>
-          <SelectTrigger className="w-28" aria-label="Leave year">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(data?.availableYears ?? [year]).map((availableYear) => (
-              <SelectItem key={availableYear} value={String(availableYear)}>
-                {availableYear}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={departmentId} onValueChange={selectDepartment}>
+            <SelectTrigger className="w-64" aria-label="Leave department">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Employees</SelectItem>
+              {departmentRows.map(({ department, depth }) => (
+                <SelectItem key={department.id} value={department.id}>
+                  {depth > 0 && `${"\u00a0\u00a0".repeat(depth)}↳ `}
+                  {department.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={String(year)}
+            onValueChange={selectYear}
+          >
+            <SelectTrigger className="w-28" aria-label="Leave year">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(activeData?.availableYears ?? [year]).map((availableYear) => (
+                <SelectItem key={availableYear} value={String(availableYear)}>
+                  {availableYear}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -200,7 +251,7 @@ export function AdminLeaveManager() {
           </CardHeader>
           <CardContent>
             <LeaveCalendar
-              key={`${year}-actual`}
+              key={`${departmentId}-${year}-actual`}
               records={calendarRecords}
               year={year}
               status="actual"
@@ -215,7 +266,7 @@ export function AdminLeaveManager() {
           </CardHeader>
           <CardContent>
             <LeaveCalendar
-              key={`${year}-planned`}
+              key={`${departmentId}-${year}-planned`}
               records={calendarRecords}
               year={year}
               status="planned"

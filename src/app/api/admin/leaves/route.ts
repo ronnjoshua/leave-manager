@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { leaveRecords, users } from "@/lib/db/schema";
-import { asc, eq } from "drizzle-orm";
+import {
+  allowedUsers,
+  departments,
+  leaveRecords,
+  users,
+} from "@/lib/db/schema";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { getYear } from "date-fns";
+import {
+  filterEmployeesForDepartment,
+  getAdminLeaveAvailableYears,
+} from "@/lib/admin-leaves";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +28,48 @@ export async function GET(req: NextRequest) {
   if (!Number.isInteger(year)) {
     return NextResponse.json({ error: "Invalid year" }, { status: 400 });
   }
+
+  const departmentId = req.nextUrl.searchParams.get("departmentId") ?? "all";
+  const departmentRows = await db
+    .select({
+      id: departments.id,
+      name: departments.name,
+      parentId: departments.parentId,
+    })
+    .from(departments)
+    .orderBy(asc(departments.name));
+
+  if (
+    departmentId !== "all" &&
+    !departmentRows.some((department) => department.id === departmentId)
+  ) {
+    return NextResponse.json(
+      { error: "Department not found" },
+      { status: 404 }
+    );
+  }
+
+  let scopedEmployeeEmails: string[] | null = null;
+  if (departmentId !== "all") {
+    const employeeRows = await db
+      .select({
+        email: allowedUsers.email,
+        departmentId: allowedUsers.departmentId,
+      })
+      .from(allowedUsers);
+    scopedEmployeeEmails = filterEmployeesForDepartment(
+      departmentRows,
+      employeeRows,
+      departmentId
+    ).map((employee) => employee.email);
+  }
+
+  const departmentCondition =
+    scopedEmployeeEmails === null
+      ? undefined
+      : scopedEmployeeEmails.length > 0
+        ? inArray(users.email, scopedEmployeeEmails)
+        : sql<boolean>`false`;
 
   const [records, years] = await Promise.all([
     db
@@ -37,20 +88,26 @@ export async function GET(req: NextRequest) {
       })
       .from(leaveRecords)
       .leftJoin(users, eq(leaveRecords.userId, users.id))
-      .where(eq(leaveRecords.year, year))
+      .where(and(eq(leaveRecords.year, year), departmentCondition))
       .orderBy(asc(leaveRecords.startDate), asc(leaveRecords.createdAt)),
     db
       .selectDistinct({ year: leaveRecords.year })
       .from(leaveRecords)
+      .leftJoin(users, eq(leaveRecords.userId, users.id))
+      .where(departmentCondition)
       .orderBy(asc(leaveRecords.year)),
   ]);
 
   return NextResponse.json({
     year,
     currentYear,
-    availableYears: Array.from(
-      new Set([currentYear, ...years.map((entry) => entry.year)])
-    ).sort((a, b) => b - a),
+    departmentId,
+    departments: departmentRows,
+    availableYears: getAdminLeaveAvailableYears(
+      currentYear,
+      year,
+      years.map((entry) => entry.year)
+    ),
     records: records.map((record) => ({
       ...record,
       email: record.email ?? "Unknown user",

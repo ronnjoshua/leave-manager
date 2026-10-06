@@ -1,11 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildAdminLeaveRequestUrl,
+  filterEmployeesForDepartment,
   filterAdminLeaves,
+  getAdminLeaveAvailableYears,
   getAdminLeaveDayPeople,
   summarizeAdminLeaves,
   type AdminLeave,
 } from "../src/lib/admin-leaves";
+import type { DepartmentNode } from "../src/lib/departments";
 
 const leaves: AdminLeave[] = [
   {
@@ -35,6 +39,87 @@ const leaves: AdminLeave[] = [
     halfDay: null,
   },
 ];
+
+const departments: DepartmentNode[] = [
+  { id: "engineering", name: "Engineering", parentId: null },
+  { id: "platform", name: "Platform", parentId: "engineering" },
+  {
+    id: "developer-experience",
+    name: "Developer Experience",
+    parentId: "platform",
+  },
+  { id: "people", name: "People", parentId: null },
+];
+
+const employees = [
+  { email: "engineering@example.com", departmentId: "engineering" },
+  { email: "platform@example.com", departmentId: "platform" },
+  { email: "devex@example.com", departmentId: "developer-experience" },
+  { email: "people@example.com", departmentId: "people" },
+  { email: "unassigned@example.com", departmentId: null },
+];
+
+test("a parent department includes direct employees and nested descendants", () => {
+  assert.deepEqual(
+    filterEmployeesForDepartment(departments, employees, "engineering").map(
+      (employee) => employee.email
+    ),
+    [
+      "engineering@example.com",
+      "platform@example.com",
+      "devex@example.com",
+    ]
+  );
+});
+
+test("a child department excludes its parent and sibling departments", () => {
+  assert.deepEqual(
+    filterEmployeesForDepartment(departments, employees, "platform").map(
+      (employee) => employee.email
+    ),
+    ["platform@example.com", "devex@example.com"]
+  );
+});
+
+test("unassigned employees appear only in All Employees", () => {
+  assert.deepEqual(
+    filterEmployeesForDepartment(departments, employees, "all").map(
+      (employee) => employee.email
+    ),
+    [
+      "engineering@example.com",
+      "platform@example.com",
+      "devex@example.com",
+      "people@example.com",
+      "unassigned@example.com",
+    ]
+  );
+  assert.equal(
+    filterEmployeesForDepartment(departments, employees, "engineering").some(
+      (employee) => employee.email === "unassigned@example.com"
+    ),
+    false
+  );
+});
+
+test("leave requests send the selected year and department to the API", () => {
+  assert.equal(
+    buildAdminLeaveRequestUrl(2026, "developer-experience"),
+    "/api/admin/leaves?year=2026&departmentId=developer-experience"
+  );
+  assert.equal(
+    buildAdminLeaveRequestUrl(2026, "all"),
+    "/api/admin/leaves?year=2026&departmentId=all"
+  );
+});
+
+test("keeps the selected year available when a department has no records for it", () => {
+  assert.deepEqual(getAdminLeaveAvailableYears(2026, 2024, [2025]), [
+    2026,
+    2025,
+    2024,
+  ]);
+});
 
 test("filters consolidated leaves by employee and status", () => {
   assert.deepEqual(

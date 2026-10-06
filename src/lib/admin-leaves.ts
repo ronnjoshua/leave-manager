@@ -1,4 +1,8 @@
 import type { LeaveStatus, LeaveType } from "@/lib/types";
+import {
+  getDescendantDepartmentIds,
+  type DepartmentNode,
+} from "@/lib/departments";
 
 export interface AdminLeave {
   id: string;
@@ -21,6 +25,49 @@ export interface AdminLeaveFilters {
   search: string;
   fromDate?: string;
   toDate?: string;
+}
+
+export type DepartmentEmployee = {
+  email: string;
+  departmentId: string | null;
+};
+
+export function buildAdminLeaveRequestUrl(
+  year: number,
+  departmentId: string
+): string {
+  const searchParams = new URLSearchParams({
+    year: String(year),
+    departmentId,
+  });
+  return `/api/admin/leaves?${searchParams.toString()}`;
+}
+
+export function getAdminLeaveAvailableYears(
+  currentYear: number,
+  selectedYear: number,
+  recordYears: number[]
+): number[] {
+  return Array.from(new Set([currentYear, selectedYear, ...recordYears])).sort(
+    (left, right) => right - left
+  );
+}
+
+export function filterEmployeesForDepartment<T extends DepartmentEmployee>(
+  departments: DepartmentNode[],
+  employees: T[],
+  departmentId: string
+): T[] {
+  if (departmentId === "all") return employees;
+
+  const includedDepartmentIds = new Set(
+    getDescendantDepartmentIds(departments, departmentId)
+  );
+  return employees.filter(
+    (employee) =>
+      employee.departmentId !== null &&
+      includedDepartmentIds.has(employee.departmentId)
+  );
 }
 
 export function getAdminLeaveDayPeople(leaves: AdminLeave[], date: string) {
