@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { canManageAllowedUsers } from "@/lib/admin-authorization";
-import { createAllowedUsersRouteHandlers } from "@/lib/admin-user-route-handlers";
+import {
+  createAllowedUsersRouteHandlers,
+  type AllowedUserAuthorizationDependencies,
+} from "@/lib/admin-user-route-handlers";
 import { db } from "@/lib/db";
 import { allowedUsers } from "@/lib/db/schema";
 
@@ -46,16 +49,45 @@ async function createAllowedUser(req: NextRequest) {
   }
 }
 
-const handlers = createAllowedUsersRouteHandlers(
-  {
+type CollectionRouteDependencies = {
+  authorization: AllowedUserAuthorizationDependencies;
+  operations: {
+    get: () => Promise<Response>;
+    post: (request: NextRequest) => Promise<Response>;
+  };
+};
+
+const productionDependencies: CollectionRouteDependencies = {
+  authorization: {
     getSessionEmail: async () => (await auth())?.user?.email,
     canManageAllowedUsers,
   },
-  {
+  operations: {
     get: listAllowedUsers,
     post: createAllowedUser,
-  }
-);
+  },
+};
 
-export const GET = handlers.GET;
-export const POST = handlers.POST;
+type Context = { params: Promise<object> };
+
+export async function GET(
+  _request: NextRequest,
+  _context: Context,
+  dependencies: CollectionRouteDependencies = productionDependencies
+) {
+  return createAllowedUsersRouteHandlers(
+    dependencies.authorization,
+    dependencies.operations
+  ).GET();
+}
+
+export async function POST(
+  request: NextRequest,
+  _context: Context,
+  dependencies: CollectionRouteDependencies = productionDependencies
+) {
+  return createAllowedUsersRouteHandlers(
+    dependencies.authorization,
+    dependencies.operations
+  ).POST(request);
+}

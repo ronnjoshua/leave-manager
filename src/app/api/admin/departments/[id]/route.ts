@@ -159,14 +159,15 @@ export async function PATCH(request: NextRequest, { params }: Context) {
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: Context) {
-  const session = await auth();
-  if (!session?.user?.email || !(await isAdmin(session.user.email))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+type DeleteDepartmentRouteDependencies = {
+  authorize: () => Promise<boolean>;
+  deleteDepartment: (
+    id: string
+  ) => Promise<Awaited<ReturnType<typeof deleteDepartmentMutation>>>;
+};
 
-  const { id } = await params;
-  const result = await deleteDepartmentMutation(id, {
+async function deleteDepartment(id: string) {
+  return deleteDepartmentMutation(id, {
     listDepartments: () =>
       db
         .select({
@@ -201,6 +202,29 @@ export async function DELETE(_request: NextRequest, { params }: Context) {
       return Boolean(deletedRows[0]);
     },
   });
+}
+
+const productionDeleteDependencies: DeleteDepartmentRouteDependencies = {
+  authorize: async () => {
+    const session = await auth();
+    return Boolean(
+      session?.user?.email && (await isAdmin(session.user.email))
+    );
+  },
+  deleteDepartment,
+};
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: Context,
+  dependencies: DeleteDepartmentRouteDependencies = productionDeleteDependencies
+) {
+  if (!(await dependencies.authorize())) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const result = await dependencies.deleteDepartment(id);
 
   return NextResponse.json(result.body, { status: result.status });
 }

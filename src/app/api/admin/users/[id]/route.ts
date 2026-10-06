@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, isSuperAdmin } from "@/lib/auth";
 import { canManageAllowedUsers } from "@/lib/admin-authorization";
-import { createAllowedUserRouteHandlers } from "@/lib/admin-user-route-handlers";
+import {
+  createAllowedUserRouteHandlers,
+  type AllowedUserAuthorizationDependencies,
+} from "@/lib/admin-user-route-handlers";
 import { db } from "@/lib/db";
 import { allowedUsers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -81,16 +84,43 @@ async function updateAllowedUserRole(
   return NextResponse.json(updated);
 }
 
-const handlers = createAllowedUserRouteHandlers(
-  {
+type MemberRouteDependencies = {
+  authorization: AllowedUserAuthorizationDependencies;
+  operations: {
+    delete: (request: NextRequest, context: Context) => Promise<Response>;
+    patch: (request: NextRequest, context: Context) => Promise<Response>;
+  };
+};
+
+const productionDependencies: MemberRouteDependencies = {
+  authorization: {
     getSessionEmail: async () => (await auth())?.user?.email,
     canManageAllowedUsers,
   },
-  {
+  operations: {
     delete: deleteAllowedUser,
     patch: updateAllowedUserRole,
-  }
-);
+  },
+};
 
-export const DELETE = handlers.DELETE;
-export const PATCH = handlers.PATCH;
+export async function DELETE(
+  request: NextRequest,
+  context: Context,
+  dependencies: MemberRouteDependencies = productionDependencies
+) {
+  return createAllowedUserRouteHandlers(
+    dependencies.authorization,
+    dependencies.operations
+  ).DELETE(request, context);
+}
+
+export async function PATCH(
+  request: NextRequest,
+  context: Context,
+  dependencies: MemberRouteDependencies = productionDependencies
+) {
+  return createAllowedUserRouteHandlers(
+    dependencies.authorization,
+    dependencies.operations
+  ).PATCH(request, context);
+}

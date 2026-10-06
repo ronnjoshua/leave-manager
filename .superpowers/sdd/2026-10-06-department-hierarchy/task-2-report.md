@@ -40,3 +40,10 @@ Review verification: the focused review tests passed 11/11, the full suite passe
 - These seams avoid fabricated Auth.js cookies or mutable test-only production state while exercising the same authorization and mutation control flow used by the route modules.
 
 Review round 2 verification: focused route/application tests passed 3/3, the full suite passed 22/22, `npx tsc --noEmit` passed, and targeted ESLint passed.
+
+## Review fixes — round 3
+
+- Added minimal optional dependency parameters directly to the exported allowed-user GET/POST/DELETE/PATCH handlers and department DELETE handler. Next.js production invocations use the unchanged request/context arguments and default production dependencies.
+- Tests now import and invoke the actual route exports with controlled dependencies, asserting real `NextResponse` instances, status codes, JSON bodies, operation call counts, and unchanged department/member state on a 409 promotion conflict.
+
+Review round 3 verification: focused exported-route tests passed 3/3, the full suite passed 22/22, `npx tsc --noEmit` passed (including generated Next.js route validators), and targeted ESLint passed.
