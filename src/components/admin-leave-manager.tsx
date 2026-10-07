@@ -213,7 +213,13 @@ export function AdminLeaveManager() {
         <div className="flex flex-wrap items-center gap-2">
           <Select value={departmentId} onValueChange={selectDepartment}>
             <SelectTrigger className="w-64" aria-label="Leave department">
-              <SelectValue />
+              <SelectValue>
+                {(value) =>
+                  value === "all"
+                    ? "All Employees"
+                    : (departmentRows.find((row) => row.department.id === value)
+                        ?.department.name ?? "Department")}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Employees</SelectItem>
@@ -230,7 +236,7 @@ export function AdminLeaveManager() {
             onValueChange={selectYear}
           >
             <SelectTrigger className="w-28" aria-label="Leave year">
-              <SelectValue />
+              <SelectValue>{(value) => value ?? year}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {(activeData?.availableYears ?? [year]).map((availableYear) => (
@@ -290,8 +296,8 @@ export function AdminLeaveManager() {
           <CardDescription>Filter and review individual leave entries.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-6">
-            <div className="relative lg:col-span-2">
+          <div className="grid items-center gap-2 sm:grid-cols-2 lg:grid-cols-6">
+            <div className="relative sm:col-span-2 lg:col-span-2">
               <Search className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground" />
               <Input
                 value={filters.search}
@@ -302,11 +308,17 @@ export function AdminLeaveManager() {
               />
             </div>
             <Select value={filters.employee} onValueChange={(value) => updateFilter("employee", value ?? "all")}>
-              <SelectTrigger aria-label="Filter by employee">
-                <SelectValue placeholder="Employee" />
+              <SelectTrigger className="w-full min-w-0" aria-label="Filter by employee">
+                <SelectValue>
+                  {(value) =>
+                    value === "all"
+                      ? "All Employees"
+                      : (employees.find((employee) => employee.email === value)
+                          ?.name ?? value ?? "Employee")}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All employees</SelectItem>
+                <SelectItem value="all">All Employees</SelectItem>
                 {employees.map((employee) => (
                   <SelectItem key={employee.email} value={employee.email}>
                     {employee.name ?? employee.email}
@@ -315,21 +327,30 @@ export function AdminLeaveManager() {
               </SelectContent>
             </Select>
             <Select value={filters.status} onValueChange={(value) => updateFilter("status", value as AdminLeaveFilters["status"])}>
-              <SelectTrigger aria-label="Filter by status">
-                <SelectValue placeholder="Status" />
+              <SelectTrigger className="w-full min-w-0" aria-label="Filter by status">
+                <SelectValue>
+                  {(value) =>
+                    value === "all"
+                      ? "All Statuses"
+                      : value === "planned"
+                        ? "Planned"
+                        : "Actual"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="actual">Actual</SelectItem>
                 <SelectItem value="planned">Planned</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filters.type} onValueChange={(value) => updateFilter("type", value ?? "all")}>
-              <SelectTrigger aria-label="Filter by leave type">
-                <SelectValue placeholder="Type" />
+              <SelectTrigger className="w-full min-w-0" aria-label="Filter by leave type">
+                <SelectValue>
+                  {(value) => value === "all" ? "All Types" : value ?? "Type"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
                 {leaveTypes.map((type) => (
                   <SelectItem key={type} value={type}>
                     {type}
@@ -337,7 +358,7 @@ export function AdminLeaveManager() {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="ghost" className="gap-1.5" onClick={clearFilters}>
+            <Button variant="ghost" className="w-full gap-1.5 sm:w-auto" onClick={clearFilters}>
               <X className="size-4" />
               Clear
             </Button>

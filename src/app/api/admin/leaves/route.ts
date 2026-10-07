@@ -50,34 +50,28 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  let scopedEmployeeEmails: string[] | null = null;
-  if (departmentId !== "all") {
-    const employeeRows = await db
-      .select({
-        email: allowedUsers.email,
-        departmentId: allowedUsers.departmentId,
-      })
-      .from(allowedUsers);
-    scopedEmployeeEmails = Array.from(
-      new Set(
-        filterEmployeesForDepartment(
-          departmentRows,
-          employeeRows,
-          departmentId
-        ).map((employee) => canonicalizeEmailIdentity(employee.email))
+  const employeeRows = await db
+    .select({
+      email: allowedUsers.email,
+      departmentId: allowedUsers.departmentId,
+    })
+    .from(allowedUsers);
+  const visibleEmployeeRows =
+    departmentId === "all"
+      ? employeeRows
+      : filterEmployeesForDepartment(departmentRows, employeeRows, departmentId);
+  const scopedEmployeeEmails = Array.from(
+    new Set(
+      visibleEmployeeRows.map((employee) =>
+        canonicalizeEmailIdentity(employee.email)
       )
-    );
-  }
+    )
+  );
 
   const departmentCondition =
-    scopedEmployeeEmails === null
-      ? undefined
-      : scopedEmployeeEmails.length > 0
-        ? inArray(
-            sql<string>`lower(trim(${users.email}))`,
-            scopedEmployeeEmails
-          )
-        : sql<boolean>`false`;
+    scopedEmployeeEmails.length > 0
+      ? inArray(sql<string>`lower(trim(${users.email}))`, scopedEmployeeEmails)
+      : sql<boolean>`false`;
 
   const [records, years] = await Promise.all([
     db
