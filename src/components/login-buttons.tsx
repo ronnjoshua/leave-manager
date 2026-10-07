@@ -60,7 +60,7 @@ export function LoginButtons() {
         )}
         {loadingProvider === "github" ? "Signing in..." : "Continue with GitHub"}
       </Button>
-      <Button
+      {/* <Button
         variant="outline"
         className="w-full h-11 gap-2.5 text-sm font-medium transition-all hover:shadow-sm"
         disabled={!!loadingProvider}
@@ -79,7 +79,7 @@ export function LoginButtons() {
         {loadingProvider === "microsoft-entra-id"
           ? "Signing in..."
           : "Continue with Microsoft"}
-      </Button>
+      </Button> */}
     </div>
   );
 }
