@@ -7,6 +7,8 @@ export interface LeaveHistoryFilters {
   toDate: string;
 }
 
+export type LeaveHistorySortOrder = "asc" | "desc";
+
 /**
  * Filter personal leave history by leave type and an inclusive date range.
  * Date filters match records that overlap the selected range.
@@ -23,6 +25,20 @@ export function filterLeaveHistory<T extends Pick<LeaveRecord, "type" | "startDa
 
     return typeMatches && dateRangeMatches;
   });
+}
+
+/**
+ * Sort leave history by the month (and day) of each record's start date.
+ * Returns a new array so callers can safely keep their source records intact.
+ */
+export function sortLeaveHistoryByMonth<
+  T extends Pick<LeaveRecord, "startDate">,
+>(records: T[], order: LeaveHistorySortOrder): T[] {
+  const direction = order === "asc" ? 1 : -1;
+
+  return [...records].sort(
+    (a, b) => direction * a.startDate.localeCompare(b.startDate)
+  );
 }
 
 /**

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterLeaveHistory } from "../src/lib/leave-utils";
+import { filterLeaveHistory, sortLeaveHistoryByMonth } from "../src/lib/leave-utils";
 
 const records = [
   {
@@ -34,5 +34,16 @@ test("all leave history filters preserve every record", () => {
       (record) => record.id
     ),
     ["vacation", "sick"]
+  );
+});
+
+test("sorts leave history by month in ascending or descending order", () => {
+  assert.deepEqual(
+    sortLeaveHistoryByMonth(records, "asc").map((record) => record.id),
+    ["vacation", "sick"]
+  );
+  assert.deepEqual(
+    sortLeaveHistoryByMonth(records, "desc").map((record) => record.id),
+    ["sick", "vacation"]
   );
 });

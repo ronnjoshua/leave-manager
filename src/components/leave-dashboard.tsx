@@ -29,7 +29,9 @@ import { exportToPdf } from "@/lib/export-pdf";
 import {
   filterLeaveHistory,
   findOverlappingRecords,
+  sortLeaveHistoryByMonth,
   type LeaveHistoryFilters,
+  type LeaveHistorySortOrder,
 } from "@/lib/leave-utils";
 import {
   Card,
@@ -98,6 +100,8 @@ const initialHistoryFilters: LeaveHistoryFilters = {
   toDate: "",
 };
 
+const initialHistorySortOrder: LeaveHistorySortOrder = "desc";
+
 const SOURCE_BADGE_VARIANT: Record<
   LeaveSource,
   "default" | "secondary" | "outline" | "destructive"
@@ -150,6 +154,8 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
   const [historyTab, setHistoryTab] = useState<"actual" | "planned">("actual");
   const [historyFilters, setHistoryFilters] =
     useState<LeaveHistoryFilters>(initialHistoryFilters);
+  const [historySortOrder, setHistorySortOrder] =
+    useState<LeaveHistorySortOrder>(initialHistorySortOrder);
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
   const [formDays, setFormDays] = useState("");
@@ -205,9 +211,9 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
   const historyRecords = state.records.filter(
     (record) => record.status === historyTab
   );
-  const filteredHistoryRecords = filterLeaveHistory(
-    historyRecords,
-    historyFilters
+  const filteredHistoryRecords = sortLeaveHistoryByMonth(
+    filterLeaveHistory(historyRecords, historyFilters),
+    historySortOrder
   );
   const currentYear = state.currentYear ?? new Date().getFullYear();
   // For past years use Dec 31, for future years use Jan 1, for current year use today
@@ -244,6 +250,7 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
 
   function clearHistoryFilters() {
     setHistoryFilters(initialHistoryFilters);
+    setHistorySortOrder(initialHistorySortOrder);
   }
 
   // Overlap detection
@@ -1173,7 +1180,7 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid items-center gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <div className="grid items-center gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
             <Select
               value={historyFilters.type}
               onValueChange={(value) =>
@@ -1195,6 +1202,22 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
                     {type}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={historySortOrder}
+              onValueChange={(value) =>
+                setHistorySortOrder((value ?? initialHistorySortOrder) as LeaveHistorySortOrder)
+              }
+            >
+              <SelectTrigger className="w-full" aria-label="Sort history by month">
+                <SelectValue>
+                  {(value) => value === "asc" ? "Oldest first" : "Newest first"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">Newest first</SelectItem>
+                <SelectItem value="asc">Oldest first</SelectItem>
               </SelectContent>
             </Select>
             <Input
