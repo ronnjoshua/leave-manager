@@ -3,6 +3,7 @@ import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   users,
@@ -45,8 +46,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         .where(allowedUserEmailCondition(user.email));
       return !!allowed;
     },
-    session({ session, user }) {
+    async session({ session, user }) {
       session.user.id = user.id;
+      const [profile] = await db
+        .select({
+          name: users.name,
+          image: users.image,
+          displayName: users.displayName,
+          customImageUrl: users.customImageUrl,
+        })
+        .from(users)
+        .where(eq(users.id, user.id));
+      session.user.name = profile?.displayName ?? profile?.name ?? null;
+      session.user.image = profile?.customImageUrl ?? profile?.image ?? null;
       return session;
     },
   },

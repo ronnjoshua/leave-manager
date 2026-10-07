@@ -8,6 +8,13 @@
       "when": 1791269725518,
       "tag": "0000_departments",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791337585742,
+      "tag": "0001_salty_wendigo",
+      "breakpoints": true
     }
   ]
 }

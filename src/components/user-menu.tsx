@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -10,8 +11,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Shield, ChevronDown, BookOpen, User } from "lucide-react";
+import { LogOut, Shield, ChevronDown, BookOpen, User, UserPen } from "lucide-react";
 import Link from "next/link";
+import { ProfileDialog, type ProfileValues } from "@/components/profile-dialog";
 
 interface UserMenuProps {
   user?: {
@@ -52,17 +54,40 @@ function UserAvatar({
 }
 
 export function UserMenu({ user, isAdmin }: UserMenuProps) {
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(user);
+
+  function handleProfileSaved(values: ProfileValues) {
+    setCurrentUser((current) => ({ ...current, ...values }));
+  }
+
   return (
     <div className="flex items-center gap-1.5 sm:gap-2">
       <ThemeToggle />
+      <ProfileDialog
+        key={profileOpen ? "profile-open" : "profile-closed"}
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        user={currentUser}
+        onSaved={handleProfileSaved}
+      />
 
       {/* Desktop: full layout */}
       <div className="hidden md:flex items-center gap-2">
         <div className="text-right mr-0.5">
-          <p className="text-sm font-medium leading-none">{user?.name}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{user?.email}</p>
-        </div>
-        <UserAvatar user={user} size="md" />
+            <p className="text-sm font-medium leading-none">{currentUser?.name}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{currentUser?.email}</p>
+          </div>
+        <UserAvatar user={currentUser} size="md" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-muted-foreground"
+          onClick={() => setProfileOpen(true)}
+        >
+          <UserPen className="size-3.5" />
+          Profile
+        </Button>
         {isAdmin && (
           <Link href="/admin">
             <Button
@@ -92,18 +117,18 @@ export function UserMenu({ user, isAdmin }: UserMenuProps) {
           <DropdownMenuTrigger
             render={
               <button className="flex items-center gap-1 rounded-full pl-0.5 pr-1.5 py-0.5 hover:bg-accent transition-colors outline-none">
-                <UserAvatar user={user} />
+                <UserAvatar user={currentUser} />
                 <ChevronDown className="size-3.5 text-muted-foreground" />
               </button>
             }
           />
           <DropdownMenuContent align="end" sideOffset={8}>
             <div className="flex items-center gap-2.5 px-2 py-2.5">
-              <UserAvatar user={user} size="md" />
+              <UserAvatar user={currentUser} size="md" />
               <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{user?.name}</p>
+                <p className="text-sm font-medium truncate">{currentUser?.name}</p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {user?.email}
+                  {currentUser?.email}
                 </p>
               </div>
             </div>
@@ -123,6 +148,10 @@ export function UserMenu({ user, isAdmin }: UserMenuProps) {
               </Link>
             )}
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setProfileOpen(true)}>
+              <UserPen className="size-4 mr-2" />
+              Edit profile
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => signOut()}>
               <LogOut className="size-4 mr-2" />
               Sign out

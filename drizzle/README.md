@@ -2,6 +2,8 @@
 
 `0000_departments.sql` is an additive upgrade for an existing leave-calculator database. It assumes the pre-department auth and leave schema already exists, including `allowed_user`; it is not a bootstrap migration for an empty database.
 
+`0001_salty_wendigo.sql` adds the nullable `display_name` and `custom_image_url` columns to the existing `user` table for custom profile names and avatars.
+
 The SQL is safe to rerun where practical: the table, column, constraints, and indexes are guarded against duplicate creation. Existing allowed users remain unassigned because `department_id` is nullable and has no default or backfill.
 
 `meta/0000_snapshot.json` is the complete current Drizzle schema snapshot, including the pre-existing tables. Future `drizzle-kit generate` runs compare against that full snapshot even though the SQL file contains only the department upgrade.
