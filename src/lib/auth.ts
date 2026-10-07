@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
+import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/lib/db";
 import {
@@ -24,6 +25,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     GitHub({ allowDangerousEmailAccountLinking: true }),
     Google({ allowDangerousEmailAccountLinking: true }),
+    MicrosoftEntraID({
+      clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
+      clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
+      // Auth.js defaults to Microsoft's /common issuer, which supports
+      // personal Outlook accounts and work/school Microsoft accounts.
+      allowDangerousEmailAccountLinking: true,
+    }),
   ],
   pages: {
     signIn: "/login",

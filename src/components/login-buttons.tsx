@@ -60,6 +60,26 @@ export function LoginButtons() {
         )}
         {loadingProvider === "github" ? "Signing in..." : "Continue with GitHub"}
       </Button>
+      <Button
+        variant="outline"
+        className="w-full h-11 gap-2.5 text-sm font-medium transition-all hover:shadow-sm"
+        disabled={!!loadingProvider}
+        onClick={() => handleSignIn("microsoft-entra-id")}
+      >
+        {loadingProvider === "microsoft-entra-id" ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <span className="grid size-4 grid-cols-2 gap-0.5">
+            <span className="bg-[#f25022]" />
+            <span className="bg-[#7fba00]" />
+            <span className="bg-[#00a4ef]" />
+            <span className="bg-[#ffb900]" />
+          </span>
+        )}
+        {loadingProvider === "microsoft-entra-id"
+          ? "Signing in..."
+          : "Continue with Microsoft"}
+      </Button>
     </div>
   );
 }
