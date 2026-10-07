@@ -1,5 +1,29 @@
 import { parseISO, isBefore, isAfter, isSameDay } from "date-fns";
-import type { LeaveRecord } from "./types";
+import type { LeaveRecord, LeaveType } from "./types";
+
+export interface LeaveHistoryFilters {
+  type: LeaveType | "all";
+  fromDate: string;
+  toDate: string;
+}
+
+/**
+ * Filter personal leave history by leave type and an inclusive date range.
+ * Date filters match records that overlap the selected range.
+ */
+export function filterLeaveHistory<T extends Pick<LeaveRecord, "type" | "startDate" | "endDate">>(
+  records: T[],
+  filters: LeaveHistoryFilters
+): T[] {
+  return records.filter((record) => {
+    const typeMatches = filters.type === "all" || record.type === filters.type;
+    const dateRangeMatches =
+      (!filters.fromDate || record.endDate >= filters.fromDate) &&
+      (!filters.toDate || record.startDate <= filters.toDate);
+
+    return typeMatches && dateRangeMatches;
+  });
+}
 
 /**
  * Check if two date ranges overlap.

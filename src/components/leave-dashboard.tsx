@@ -26,7 +26,11 @@ import {
 import { toast } from "sonner";
 import { exportToCsv } from "@/lib/export-csv";
 import { exportToPdf } from "@/lib/export-pdf";
-import { findOverlappingRecords } from "@/lib/leave-utils";
+import {
+  filterLeaveHistory,
+  findOverlappingRecords,
+  type LeaveHistoryFilters,
+} from "@/lib/leave-utils";
 import {
   Card,
   CardContent,
@@ -85,7 +89,14 @@ import {
   FileDown,
   FileUp,
   Info,
+  X,
 } from "lucide-react";
+
+const initialHistoryFilters: LeaveHistoryFilters = {
+  type: "all",
+  fromDate: "",
+  toDate: "",
+};
 
 const SOURCE_BADGE_VARIANT: Record<
   LeaveSource,
@@ -137,6 +148,8 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
   const [formStatus, setFormStatus] = useState<"actual" | "planned">("actual");
   const [formHalfDay, setFormHalfDay] = useState<"AM" | "PM" | null>(null);
   const [historyTab, setHistoryTab] = useState<"actual" | "planned">("actual");
+  const [historyFilters, setHistoryFilters] =
+    useState<LeaveHistoryFilters>(initialHistoryFilters);
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
   const [formDays, setFormDays] = useState("");
@@ -189,6 +202,13 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
 
   const now = new Date();
   const year = state.year;
+  const historyRecords = state.records.filter(
+    (record) => record.status === historyTab
+  );
+  const filteredHistoryRecords = filterLeaveHistory(
+    historyRecords,
+    historyFilters
+  );
   const currentYear = state.currentYear ?? new Date().getFullYear();
   // For past years use Dec 31, for future years use Jan 1, for current year use today
   const referenceDate =
@@ -221,6 +241,10 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
   );
   const forecast = getEndOfYearForecast(state.carryOver, totalUsed, empStatus, employeeStartDate);
   const typeSummary = getLeaveTypeSummary(state.records);
+
+  function clearHistoryFilters() {
+    setHistoryFilters(initialHistoryFilters);
+  }
 
   // Overlap detection
   const formOverlaps = formStartDate && formEndDate
@@ -1148,29 +1172,86 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          {(() => {
-            const filteredRecords = state.records.filter((r) => r.status === historyTab);
-            if (filteredRecords.length === 0) {
-              return (
+        <CardContent className="space-y-4">
+          <div className="grid items-center gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <Select
+              value={historyFilters.type}
+              onValueChange={(value) =>
+                setHistoryFilters((current) => ({
+                  ...current,
+                  type: (value ?? "all") as LeaveHistoryFilters["type"],
+                }))
+              }
+            >
+              <SelectTrigger className="w-full" aria-label="Filter history by leave type">
+                <SelectValue>
+                  {(value) => value === "all" ? "All Types" : value ?? "Type"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {LEAVE_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="date"
+              value={historyFilters.fromDate}
+              onChange={(event) =>
+                setHistoryFilters((current) => ({
+                  ...current,
+                  fromDate: event.target.value,
+                }))
+              }
+              aria-label="Filter history from date"
+            />
+            <Input
+              type="date"
+              value={historyFilters.toDate}
+              onChange={(event) =>
+                setHistoryFilters((current) => ({
+                  ...current,
+                  toDate: event.target.value,
+                }))
+              }
+              aria-label="Filter history to date"
+            />
+            <Button
+              variant="ghost"
+              className="w-full gap-1.5 sm:w-auto"
+              onClick={clearHistoryFilters}
+            >
+              <X className="size-4" />
+              Clear filters
+            </Button>
+          </div>
+
+          {filteredHistoryRecords.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
                   <div className="flex items-center justify-center size-12 rounded-full bg-muted">
                     <CalendarDays className="size-5 text-muted-foreground" />
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-medium">
-                      {historyTab === "actual" ? "No leaves recorded" : "No planned leaves"}
+                      {historyRecords.length === 0
+                        ? historyTab === "actual"
+                          ? "No leaves recorded"
+                          : "No planned leaves"
+                        : "No leaves match these filters"}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {historyTab === "actual"
-                        ? "Click \"Log Leave\" to record your first leave."
-                        : "Plan future leaves by setting status to \"Planned\" when logging."}
+                      {historyRecords.length === 0
+                        ? historyTab === "actual"
+                          ? "Click \"Log Leave\" to record your first leave."
+                          : "Plan future leaves by setting status to \"Planned\" when logging."
+                        : "Try adjusting the leave type or date range."}
                     </p>
                   </div>
                 </div>
-              );
-            }
-            return (
+            ) : (
             <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
               <Table>
                 <TableHeader>
@@ -1184,7 +1265,7 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRecords.map((record) => (
+                  {filteredHistoryRecords.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell className="whitespace-nowrap font-medium">
                         {formatDateRange(record.startDate, record.endDate)}
@@ -1247,8 +1328,7 @@ export function LeaveDashboard({ userName }: { userName?: string }) {
                 </TableBody>
               </Table>
             </div>
-            );
-          })()}
+            )}
         </CardContent>
       </Card>
 
