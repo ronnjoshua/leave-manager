@@ -13,6 +13,7 @@ import {
   canonicalizeEmailIdentity,
   filterEmployeesForDepartment,
   getAdminLeaveAvailableYears,
+  resolveAdminLeaveName,
 } from "@/lib/admin-leaves";
 
 export const dynamic = "force-dynamic";
@@ -79,7 +80,8 @@ export async function GET(req: NextRequest) {
         id: leaveRecords.id,
         userId: leaveRecords.userId,
         email: users.email,
-        name: users.name,
+        customName: users.displayName,
+        providerName: users.name,
         startDate: leaveRecords.startDate,
         endDate: leaveRecords.endDate,
         days: leaveRecords.days,
@@ -113,6 +115,7 @@ export async function GET(req: NextRequest) {
     records: records.map((record) => ({
       ...record,
       email: record.email ?? "Unknown user",
+      name: resolveAdminLeaveName(record.customName, record.providerName, record.email ?? "Unknown user"),
       status: record.status === "planned" ? "planned" : "actual",
       halfDay: record.halfDay === "AM" || record.halfDay === "PM" ? record.halfDay : null,
     })),

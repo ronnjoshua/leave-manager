@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Search, Users, X } from "lucide-react";
+import {
+  BarChart3,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Grid3X3,
+  Search,
+  Users,
+  X,
+} from "lucide-react";
 import { LeaveCalendar } from "@/components/leave-calendar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,9 +40,15 @@ import {
 import {
   buildAdminLeaveRequestUrl,
   filterAdminLeaves,
+  getAdminLeaveDailyTotals,
+  getAdminLeaveEmployeeDayRows,
+  paginateAdminLeaves,
   summarizeAdminLeaves,
   type AdminLeave,
+  type AdminLeaveDayStatus,
   type AdminLeaveFilters,
+  type AdminLeaveDailyTotal,
+  type AdminLeaveEmployeeDayRow,
 } from "@/lib/admin-leaves";
 import { sortDepartmentsForDisplay } from "@/lib/admin-department-ui";
 import type { DepartmentNode } from "@/lib/departments";
@@ -65,11 +80,21 @@ function formatDate(date: string) {
   }).format(new Date(`${date}T00:00:00`));
 }
 
+function formatDayLabel(date: string) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T00:00:00Z`));
+}
+
 export function AdminLeaveManager() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [departmentId, setDepartmentId] = useState("all");
   const [data, setData] = useState<AdminLeaveResponse | null>(null);
   const [filters, setFilters] = useState<AdminLeaveFilters>(initialFilters);
+  const [leaveDetailsPage, setLeaveDetailsPage] = useState(1);
+  const [leaveDetailsPageSize, setLeaveDetailsPageSize] = useState(25);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -105,9 +130,21 @@ export function AdminLeaveManager() {
     () => filterAdminLeaves(records, filters),
     [records, filters]
   );
+  const paginatedRecords = useMemo(
+    () => paginateAdminLeaves(filteredRecords, leaveDetailsPage, leaveDetailsPageSize),
+    [filteredRecords, leaveDetailsPage, leaveDetailsPageSize]
+  );
   const summary = useMemo(
     () => summarizeAdminLeaves(filteredRecords),
     [filteredRecords]
+  );
+  const dailyTotals = useMemo(
+    () => getAdminLeaveDailyTotals(filteredRecords, year),
+    [filteredRecords, year]
+  );
+  const employeeDayRows = useMemo(
+    () => getAdminLeaveEmployeeDayRows(filteredRecords, year),
+    [filteredRecords, year]
   );
   const employees = useMemo(
     () =>
@@ -156,10 +193,12 @@ export function AdminLeaveManager() {
     value: AdminLeaveFilters[Key]
   ) {
     setFilters((current) => ({ ...current, [key]: value }));
+    setLeaveDetailsPage(1);
   }
 
   function clearFilters() {
     setFilters(initialFilters);
+    setLeaveDetailsPage(1);
   }
 
   function selectDepartment(value: string | null) {
@@ -167,12 +206,14 @@ export function AdminLeaveManager() {
     setLoading(true);
     setDepartmentId(value);
     setFilters((current) => ({ ...current, employee: "all" }));
+    setLeaveDetailsPage(1);
   }
 
   function selectYear(value: string | null) {
     if (!value) return;
     setLoading(true);
     setYear(Number(value));
+    setLeaveDetailsPage(1);
   }
 
   if (loading && !activeData) {
@@ -283,6 +324,12 @@ export function AdminLeaveManager() {
           </CardContent>
         </Card>
       </div>
+
+      <LeaveActivityVisualization
+        year={year}
+        dailyTotals={dailyTotals}
+        employeeDayRows={employeeDayRows}
+      />
 
       <Card>
         <CardHeader className="pb-3">
@@ -396,7 +443,7 @@ export function AdminLeaveManager() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRecords.map((record) => (
+                {paginatedRecords.records.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell>
                       <div className="font-medium">{record.name ?? record.email}</div>
@@ -421,9 +468,252 @@ export function AdminLeaveManager() {
               </TableBody>
             </Table>
           )}
+          {filteredRecords.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+              <span>
+                Showing {(paginatedRecords.page - 1) * paginatedRecords.pageSize + 1}–
+                {Math.min(
+                  paginatedRecords.page * paginatedRecords.pageSize,
+                  paginatedRecords.totalRecords
+                )} of {paginatedRecords.totalRecords}
+              </span>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={String(leaveDetailsPageSize)}
+                  onValueChange={(value) => {
+                    setLeaveDetailsPageSize(Number(value ?? 25));
+                    setLeaveDetailsPage(1);
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-24" aria-label="Rows per page">
+                    <SelectValue>{(value) => `${value ?? leaveDetailsPageSize} / page`}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[10, 25, 50].map((size) => (
+                      <SelectItem key={size} value={String(size)}>{size} / page</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Previous leave details page"
+                  disabled={paginatedRecords.page <= 1}
+                  onClick={() => setLeaveDetailsPage((page) => Math.max(1, page - 1))}
+                >
+                  <ChevronLeft className="size-4" />
+                  Previous
+                </Button>
+                <span className="tabular-nums">{paginatedRecords.page} / {paginatedRecords.totalPages}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Next leave details page"
+                  disabled={paginatedRecords.page >= paginatedRecords.totalPages}
+                  onClick={() => setLeaveDetailsPage((page) => Math.min(paginatedRecords.totalPages, page + 1))}
+                >
+                  Next
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function LeaveActivityVisualization({
+  year,
+  dailyTotals,
+  employeeDayRows,
+}: {
+  year: number;
+  dailyTotals: AdminLeaveDailyTotal[];
+  employeeDayRows: AdminLeaveEmployeeDayRow[];
+}) {
+  const maxDailyPeople = Math.max(
+    1,
+    ...dailyTotals.map((day) => day.actualPeople + day.plannedPeople)
+  );
+  const activeDays = dailyTotals.filter(
+    (day) => day.actualPeople > 0 || day.plannedPeople > 0
+  ).length;
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-2">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BarChart3 className="size-4" />
+            Daily leave activity
+          </CardTitle>
+          <CardDescription>
+            People on actual or planned leave for each day in {year}. Hover a bar
+            for the exact date and totals.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {activeDays === 0 ? (
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              No leave activity matches these filters.
+            </p>
+          ) : (
+            <div className="overflow-x-auto pb-2">
+              <div className="min-w-[720px]">
+                <div className="flex h-48 items-end gap-px border-b border-border/60 px-1">
+                  {dailyTotals.map((day) => {
+                    const label = formatDate(day.date);
+                    const total = day.actualPeople + day.plannedPeople;
+                    return (
+                      <div
+                        key={day.date}
+                        className="group relative flex h-full min-w-0 flex-1 flex-col justify-end"
+                        title={`${label}: ${day.actualPeople} actual, ${day.plannedPeople} planned`}
+                        aria-label={`${label}: ${day.actualPeople} actual, ${day.plannedPeople} planned`}
+                      >
+                        {total > 0 && (
+                          <div className="mx-px flex flex-col justify-end" style={{ height: `${(total / maxDailyPeople) * 100}%` }}>
+                            {day.plannedPeople > 0 && (
+                              <div className="min-h-0.5 bg-amber-400" style={{ height: `${(day.plannedPeople / total) * 100}%` }} />
+                            )}
+                            {day.actualPeople > 0 && (
+                              <div className="min-h-0.5 bg-teal-600" style={{ height: `${(day.actualPeople / total) * 100}%` }} />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex justify-between px-1 text-[10px] text-muted-foreground">
+                  <span>Jan 1</span>
+                  <span>Jun 1</span>
+                  <span>Dec 31</span>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-teal-600" /> Actual
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-sm bg-amber-400" /> Planned
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Grid3X3 className="size-4" />
+            Employee-by-day activity
+          </CardTitle>
+          <CardDescription>
+            Scroll horizontally to inspect each employee&apos;s leave days in {year}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {employeeDayRows.length === 0 ? (
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              No employees match these filters.
+            </p>
+          ) : (
+            <div className="relative isolate overflow-x-auto pb-2">
+              <div className="relative min-w-max text-xs">
+                <div
+                  className="grid items-end border-b border-border/60 pb-1"
+                  style={{ gridTemplateColumns: `16rem repeat(${dailyTotals.length}, 3rem)` }}
+                >
+                  <div className="sticky left-0 z-30 box-border flex min-h-10 w-64 self-stretch items-center overflow-hidden border-r-2 border-border bg-card pr-2 font-medium text-muted-foreground shadow-[4px_0_8px_-6px_rgba(0,0,0,0.45)]">
+                    Employee
+                  </div>
+                  {dailyTotals.map((day) => (
+                    <div key={day.date} className="text-center text-[11px] text-muted-foreground" title={formatDate(day.date)}>
+                      {formatDayLabel(day.date)}
+                    </div>
+                  ))}
+                </div>
+                {employeeDayRows.map((row) => (
+                  <div
+                    key={row.email}
+                    className="grid min-h-12 items-center border-b border-border/30 py-2 last:border-0"
+                    style={{ gridTemplateColumns: `16rem repeat(${dailyTotals.length}, 3rem)` }}
+                  >
+                    <div className="sticky left-0 z-20 box-border flex min-w-0 w-64 self-stretch items-center truncate overflow-hidden whitespace-nowrap border-r-2 border-border bg-card pr-2 text-sm font-medium shadow-[4px_0_8px_-6px_rgba(0,0,0,0.45)]" title={`${row.name ?? row.email} (${row.email})`}>
+                      {row.name ?? row.email}
+                    </div>
+                    {dailyTotals.map((day) => {
+                      const status = row.days[day.date];
+                      return (
+                        <ActivityCell
+                          key={day.date}
+                          status={status}
+                          halfDay={row.halfDays[day.date]}
+                          date={day.date}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
+            <ActivityLegend color="bg-teal-600" label="Actual" />
+            <ActivityLegend color="bg-amber-400" label="Planned" />
+            <ActivityLegend color="bg-violet-500" label="Both" />
+            <span className="inline-flex items-center">Split indicator = half-day (AM/PM)</span>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ActivityCell({
+  status,
+  halfDay,
+  date,
+}: {
+  status?: AdminLeaveDayStatus;
+  halfDay?: "AM" | "PM";
+  date: string;
+}) {
+  const color =
+    status === "actual"
+      ? "bg-teal-600"
+      : status === "planned"
+        ? "bg-amber-400"
+        : status === "mixed"
+          ? "bg-violet-500"
+          : "bg-muted/40";
+  return (
+    <div
+      className="flex h-9 w-full items-center justify-center border border-border/70 bg-muted/10"
+      title={`${formatDate(date)}: ${status ?? "No leave"}${halfDay ? ` (${halfDay} half-day)` : ""}`}
+      aria-label={`${formatDate(date)}: ${status ?? "No leave"}${halfDay ? ` (${halfDay} half-day)` : ""}`}
+    >
+      {halfDay && status !== "mixed" ? (
+        <span className="flex h-5 w-5 overflow-hidden rounded-sm" aria-hidden="true">
+          <span className={`h-full w-1/2 ${halfDay === "AM" ? color : "bg-muted/40"}`} />
+          <span className={`h-full w-1/2 ${halfDay === "PM" ? color : "bg-muted/40"}`} />
+        </span>
+      ) : (
+        <span className={`h-5 w-5 rounded-sm ${color}`} aria-hidden="true" />
+      )}
+    </div>
+  );
+}
+
+function ActivityLegend({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`size-2.5 rounded-sm ${color}`} /> {label}
+    </span>
   );
 }
 

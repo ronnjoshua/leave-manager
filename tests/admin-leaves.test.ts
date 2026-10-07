@@ -7,6 +7,10 @@ import {
   filterAdminLeaves,
   getAdminLeaveAvailableYears,
   getAdminLeaveDayPeople,
+  getAdminLeaveDailyTotals,
+  getAdminLeaveEmployeeDayRows,
+  resolveAdminLeaveName,
+  paginateAdminLeaves,
   summarizeAdminLeaves,
   type AdminLeave,
 } from "../src/lib/admin-leaves";
@@ -173,4 +177,86 @@ test("lists each person and leave type for a calendar day", () => {
     getAdminLeaveDayPeople(leaves, "2026-06-10"),
     [{ name: "Ana", email: "ana@example.com", type: "Vacation", status: "planned" }]
   );
+});
+
+test("aggregates unique actual and planned employees for every leave day", () => {
+  assert.deepEqual(
+    getAdminLeaveDailyTotals(
+      [
+        ...leaves,
+        {
+          ...leaves[0],
+          id: "ana-second-record",
+          startDate: "2026-06-11",
+          endDate: "2026-06-11",
+        },
+      ],
+      2026
+    ).filter((day) => day.actualPeople || day.plannedPeople),
+    [
+      { date: "2026-06-10", actualPeople: 0, plannedPeople: 1 },
+      { date: "2026-06-11", actualPeople: 0, plannedPeople: 1 },
+      { date: "2026-06-12", actualPeople: 0, plannedPeople: 1 },
+      { date: "2026-06-15", actualPeople: 1, plannedPeople: 0 },
+    ]
+  );
+});
+
+test("builds employee-by-day rows and marks overlapping statuses as mixed", () => {
+  const rows = getAdminLeaveEmployeeDayRows(
+    [
+      ...leaves,
+      {
+        ...leaves[1],
+        id: "ben-planned-overlap",
+        startDate: "2026-06-15",
+        endDate: "2026-06-16",
+        status: "planned",
+      },
+    ],
+    2026
+  );
+
+  assert.deepEqual(rows.map((row) => row.email), ["ana@example.com", "ben@example.com"]);
+  assert.equal(rows[0].days["2026-06-10"], "planned");
+  assert.equal(rows[1].days["2026-06-15"], "mixed");
+  assert.equal(rows[1].days["2026-06-16"], "planned");
+});
+
+test("paginates filtered leave records with stable page bounds", () => {
+  const records = Array.from({ length: 5 }, (_, index) => ({
+    ...leaves[0],
+    id: `leave-${index + 1}`,
+  }));
+
+  assert.deepEqual(paginateAdminLeaves(records, 2, 2), {
+    records: [records[2], records[3]],
+    page: 2,
+    pageSize: 2,
+    totalPages: 3,
+    totalRecords: 5,
+  });
+  assert.deepEqual(paginateAdminLeaves(records, 99, 2), {
+    records: [records[4]],
+    page: 3,
+    pageSize: 2,
+    totalPages: 3,
+    totalRecords: 5,
+  });
+});
+
+test("prefers custom employee names and falls back to provider name or email", () => {
+  assert.equal(resolveAdminLeaveName("  Ronn Joshua Nucup ", "ronnjoshua", "ronn@example.com"), "Ronn Joshua Nucup");
+  assert.equal(resolveAdminLeaveName(null, "ronnjoshua", "ronn@example.com"), "ronnjoshua");
+  assert.equal(resolveAdminLeaveName("  ", null, "ronn@example.com"), "ronn@example.com");
+});
+
+test("keeps half-day parts available for employee activity indicators", () => {
+  const rows = getAdminLeaveEmployeeDayRows(
+    [{ ...leaves[0], halfDay: "AM", days: 0.5 }],
+    2026
+  );
+
+  assert.equal(rows[0].days["2026-06-10"], "planned");
+  assert.equal(rows[0].halfDays["2026-06-10"], "AM");
 });
